@@ -13,15 +13,13 @@ Features
 * Log consumable installations
 
 
-Screenshots
------------
+Screenshot
+----------
 
-[![alt text][1_url]][1_img]
-*Dashboard*
+[![alt text][1_img]][1_url]
 
-[1_img]: http://picasaweb.google.co.uk/lh/photo/3yoFtVLaggMluZNn2sbN4N5ayQuyd5Ikim6wNFAs91E?feat=embedwebsite
-[1_url]: http://lh5.ggpht.com/_hb6RYM32rvs/TJSVTvlqnBI/AAAAAAAADEU/A7IXMPrzme8/s288/dashboard.png
-
+[1_url]: http://picasaweb.google.co.uk/craig.rodway/PrintMaster?authkey=Gv1sRgCOPWjoHyx_Xw7gE&feat=directlink
+[1_img]: http://lh5.ggpht.com/_hb6RYM32rvs/TJSVTvlqnBI/AAAAAAAADEU/A7IXMPrzme8/s400/dashboard.png
 
 
 Requirements
