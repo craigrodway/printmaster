@@ -19,8 +19,8 @@ Screenshots
 [![alt text][1_url]][1_img]
 *Dashboard*
 
-[1_url]: http://picasaweb.google.co.uk/lh/photo/3yoFtVLaggMluZNn2sbN4N5ayQuyd5Ikim6wNFAs91E?feat=embedwebsite
-[1_img]: http://lh5.ggpht.com/_hb6RYM32rvs/TJSVTvlqnBI/AAAAAAAADEU/A7IXMPrzme8/s288/dashboard.png
+[1_img]: http://picasaweb.google.co.uk/lh/photo/3yoFtVLaggMluZNn2sbN4N5ayQuyd5Ikim6wNFAs91E?feat=embedwebsite
+[1_url]: http://lh5.ggpht.com/_hb6RYM32rvs/TJSVTvlqnBI/AAAAAAAADEU/A7IXMPrzme8/s288/dashboard.png
 
 
 
