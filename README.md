@@ -1,4 +1,4 @@
-PrintMaster
+printMaster
 ===========
 
 PrintMaster is a quick and easy-to-use web-based printer and consumable management system for 
