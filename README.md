@@ -35,10 +35,11 @@ Installation
 
 1. Make a new virtual host or subdirectory at the webserver
 2. Copy all Print Master files to the folder you just created
-3. Create a new database and username in MySQL
-4. Import the *printmaster.sql* file into the new database
-5. Edit the *$db* line in *inc/init.php* to reflect your database details
-6. Invent your own security (.htaccess, integrated Windows authentication...)
+3. Create a new directory called **session** where you extracted the files and make it writeable
+4. Create a new database and username in MySQL
+5. Import the *printmaster.sql* file into the new database
+6. Edit the *$db* line in *inc/init.php* to reflect your database details
+7. Invent your own security (.htaccess, integrated Windows authentication...)
 
 
 Getting started
