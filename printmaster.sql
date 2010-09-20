@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `consumables` (
   `col_m` tinyint(4) DEFAULT NULL COMMENT '1 if consumable is of colour ''Magenta''',
   `col_k` tinyint(4) DEFAULT NULL COMMENT '1 if consumable is of colour ''Black''',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details about consumables and their stock' AUTO_INCREMENT=22 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details about consumables and their stock';
 
 -- --------------------------------------------------------
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   PRIMARY KEY (`id`),
   KEY `printerhistory` (`printer_id`),
   KEY `consumablehistory` (`consumable_id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Audit history of consumable installation into printers' AUTO_INCREMENT=23 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Audit history of consumable installation into printers';
 
 -- --------------------------------------------------------
 
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `manufacturers` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(20) COLLATE utf8_unicode_ci NOT NULL COMMENT 'Name of printer manufacturer',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details of printer manufacturers' AUTO_INCREMENT=13 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details of printer manufacturers';
 
 -- --------------------------------------------------------
 
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `models` (
   `colour` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT 'Colour (1) or mono (0)',
   PRIMARY KEY (`id`),
   KEY `modelmanufacturers` (`manufacturer_id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details of printer models' AUTO_INCREMENT=13 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Details of printer models';
 
 -- --------------------------------------------------------
 
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `printers` (
   `notes` longtext COLLATE utf8_unicode_ci COMMENT 'Additional notes',
   PRIMARY KEY (`id`),
   KEY `printmodels` (`model_id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Information about printers' AUTO_INCREMENT=15 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Information about printers';
 
 --
 -- Constraints for dumped tables
