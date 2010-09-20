@@ -11,7 +11,7 @@ $tpl->set('menuitems', $menuitems);
 <?php $tpl->place('menu'); ?>
 <br />
 
-<p>
+<p class="noprint">
 	<label for="search"><strong>Find printer:</strong></label>
 	<input type="text" name="search" id="search" size="30" autocomplete="off" />
 </p>
@@ -75,7 +75,7 @@ $tpl->set('menuitems', $menuitems);
 		}
 		$tpl->set('menuitems', $actions);
 		$tpl->place('menu');
-		echo $nostock;
+		#echo $nostock;
 		echo '</td>';
 		
 		echo '</tr>';

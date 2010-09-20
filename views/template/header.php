@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="web/css/text.css" />
 <link rel="stylesheet" href="web/css/960.css" />
 <link rel="stylesheet" href="web/css/printmaster.css" />
+<link rel="stylesheet" href="web/css/print.css" media="print" />
 <link rel="stylesheet" href="web/_boxy/stylesheets/boxy.css" />
 <script src="web/js/jquery-1.4.2.min.js"></script>
 <script src="web/js/picnet.table.filter.min.js"></script>

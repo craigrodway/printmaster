@@ -1,0 +1,7 @@
+.noprint,
+div#header-fullwidth,
+tr.filters,
+ul.linkbar
+{
+	display: none;
+}
