@@ -4,6 +4,10 @@ PrintMaster
 PrintMaster is a quick and easy-to-use web-based printer and consumable management system for 
 IT departments.
 
+Licensed under GPLv3.
+
+**[Download ZIP](http://github.com/craigrodway/printmaster/zipball/master)**
+
 
 Features
 --------
@@ -33,10 +37,10 @@ Requirements
 Installation
 ------------
 
-1. Make a new virtual host or subdirectory at the webserver
+1. Create directory on webserver to store files (configure as virtual host or subdir)
 2. Copy all Print Master files to the folder you just created
 3. Create a new directory called **session** where you extracted the files and make it writeable
-4. Create a new database and username in MySQL
+4. Create a new username and database in MySQL
 5. Import the *printmaster.sql* file into the new database
 6. Edit the *$db* line in *inc/init.php* to reflect your database details
 7. Invent your own security (.htaccess, integrated Windows authentication...)
@@ -45,7 +49,7 @@ Installation
 Getting started
 ---------------
 
-1. Add manufacturers
+1. Add manufacturers (or import **printmaster-manufacturers.sql** for most common)
 2. Add printer models
 3. Add consuambles
 4. Add printers
@@ -57,4 +61,5 @@ TODO
 * Tidy up some miscellaneous bits of code
 * Add option on Printer list to install a consumable
 * Allow bulk updating of consumable stock
+* Stock levels (OK, Low, Critical) configurable at consumable level, not global
 * SNMP for printers?

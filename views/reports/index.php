@@ -1,5 +1,5 @@
 <?php
-if($printer){
+if(isset($printer)){
 	$tpl->set('title', 'Consumable installation reports for ' . $printer->getName());
 } else {
 	$tpl->set('title', 'Consumable installation reports');
@@ -11,7 +11,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 <div class="grid_12">
 
-<p>
+<p class="noprint">
 	<label for="search"><strong>Find:</strong></label>
 	<input type="text" name="search" id="search" size="30" autocomplete="off" />
 </p>

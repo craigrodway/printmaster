@@ -6,7 +6,7 @@ $menuitems[] = array('consumables.php?action=add', 'Add new consumable', 'add.pn
 #$menuitems[] = array('stock.php', 'New delivery', 'package_green.png');
 $tpl->set('menuitems', $menuitems);
 
-$colour = '<span style="color:#%s; font-family:Webdings; font-size:125%%; ">n</span> ';
+$colour = '<span style="color:#%s;">&bull;</span>';
 ?>
 
 <div class="grid_12">
@@ -28,7 +28,7 @@ $colour = '<span style="color:#%s; font-family:Webdings; font-size:125%%; ">n</s
 		
 		echo '<tr>';
 		
-		echo '<td style="width:100px;text-align:left;">';
+		echo '<td style="width:100px;text-align:left;" class="col">';
 		if($c->col_c){ printf($colour, '0066B3'); }
 		if($c->col_y){ printf($colour, 'FFCC00'); }
 		if($c->col_m){ printf($colour, 'CC0099'); }
