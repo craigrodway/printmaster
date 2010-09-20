@@ -6,11 +6,8 @@ IT departments.
 
 Licensed under GPLv3.
 
-<<<<<<< HEAD
 **[Download ZIP](http://github.com/craigrodway/printmaster/zipball/master)**
 
-=======
->>>>>>> origin/master
 
 Features
 --------
