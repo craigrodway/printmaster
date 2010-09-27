@@ -51,6 +51,7 @@ class Consumable extends fActiveRecord{
 				LEFT JOIN models ON consumables_models.model_id = models.id
 				LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
 				WHERE consumables.id = %i
+				GROUP BY consumables.id
 				LIMIT 1";
 				
 		$query = $db->query($sql, $id)->asObjects();
