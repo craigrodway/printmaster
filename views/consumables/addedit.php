@@ -56,21 +56,21 @@ $tpl->place('header');
 					<input type="hidden" name="col_m" value="" />
 					<input type="hidden" name="col_k" value="" />
 					
-					<label class="check">
+					<label class="check consumable_col" style="background:#0066b3; margin-top:0;">
 						<input type="checkbox" id="col_c" name="col_c" value="1" <?php fHTML::showChecked($c->getCol_c(), 1) ?> />
-						<span style="color:#0066B3; font-family:Webdings; font-size:125%;">n</span></label>
+					</label>
 					
-					<label class="check">
+					<label class="check consumable_col" style="background:#FFCC00;">
 						<input type="checkbox" id="col_y" name="col_y" value="1" <?php fHTML::showChecked($c->getCol_y(), 1) ?> /> 
-						<span style="color:#FFCC00; font-family:Webdings; font-size:125%;">n</span></label>
+					</label>
 						
-					<label class="check">
+					<label class="check consumable_col" style="background:#CC0099;">
 						<input type="checkbox" id="col_c" name="col_m" value="1" <?php fHTML::showChecked($c->getCol_m(), 1) ?> /> 
-						<span style="color:#CC0099; font-family:Webdings; font-size:125%;">n</span></label>
+					</label>
 					
-					<label class="check">
+					<label class="check consumable_col" style="background:#000000;">
 						<input type="checkbox" id="col_c" name="col_k" value="1" <?php fHTML::showChecked($c->getCol_k(), 1) ?> /> 
-						<span style="color:#000; font-family:Webdings; font-size:125%;">n</span></label>
+					</label>
 				</td>
 			</tr>
 			

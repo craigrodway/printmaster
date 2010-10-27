@@ -125,6 +125,16 @@ a.btn{ display: inline-block; }
 .btn_misc{ background: #0076BD; }
 .btn_misc:hover{ background: #00598E; color: #fff; }
 
+/* Consumable - add/edit */
+label.consumable_col{
+	width:50px;
+	margin:5px 0;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+
+/* Home - install consumable */
 div#buttoncontainer{
 	text-align: center;
 }
