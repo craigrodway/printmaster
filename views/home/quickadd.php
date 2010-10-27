@@ -115,8 +115,10 @@ createButton = function(id, name, colours, qty){
 		btn.click(function(){ alert('This consumable is not in stock.'); return false; });
 	}
 	
+	var br = $('<br>');
+	
 	// Append element to container
-	$('#buttoncontainer').append(btn);
+	$('#buttoncontainer').append(btn).append(br);
 	
 };
 

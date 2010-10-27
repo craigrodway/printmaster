@@ -129,9 +129,8 @@ div#buttoncontainer{
 	text-align: center;
 }
 div#buttoncontainer input{
-	display: block;
+	display: inline;
 	margin: 0 auto 10px auto;
-	clear: both;
 	text-align: center;
 }
 
