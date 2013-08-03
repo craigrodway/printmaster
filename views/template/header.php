@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="web/css/print.css" media="print" />
 <link rel="stylesheet" href="web/_boxy/stylesheets/boxy.css" />
 <script src="web/js/jquery-1.6.4.min.js"></script>
+<script src="web/js/jquery.fastLiveFilter.js"></script>
 <script src="web/js/jquery.table-filter.min.js"></script>
 <script src="web/_boxy/javascripts/jquery.boxy.js"></script>
 <!--[if lt IE 9]>

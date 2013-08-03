@@ -25,6 +25,7 @@
 			<td class="input" width="50%">
 			
 				<div> <!-- style="height:300px; overflow-y: scroll;">-->
+					<input type="search" id="printer_search" placeholder="Search for a printer..." style="width: 100%; padding: 4px; margin: 0 0 10px 0">
 					<ul class="printerlist"><?php
 						foreach($printers as $p){
 							printf('<li class="printer-%s"><a href="#" model="%d" printer="%d">%s</a></li>',
@@ -52,6 +53,21 @@
 
 <script type="text/javascript">
 var consumables = <?php echo $models_consumables_json; ?>;
+
+// Printer search
+$('#printer_search').fastLiveFilter('.printerlist', {
+	callback: function(total) {
+		if (total == 1) {
+			//;
+			setTimeout('$(".printerlist li:visible a").trigger("click")', 250);
+		}
+	}
+}).change(function() {
+	if ($(this).val() == "") {
+		// Clear container's previous contents
+		$('#buttoncontainer').html("");
+	}
+}).focus();
 
 
 // Printer list click
