@@ -5,19 +5,28 @@
  * All headers, text and html content returned by this class are encoded in
  * UTF-8. Please see http://flourishlib.com/docs/UTF-8 for more information.
  * 
- * @copyright  Copyright (c) 2010 Will Bond
+ * @copyright  Copyright (c) 2010-2011 Will Bond
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fMailbox
  * 
- * @version    1.0.0b5
- * @changes    1.0.0b5  Fixes for increased compatibility with various IMAP and POP3 servers, hacked around a bug in PHP 5.3 on Windows [wb, 2010-06-22]
- * @changes    1.0.0b4  Added code to handle emails without an explicit `Content-type` header [wb, 2010-06-04]
- * @changes    1.0.0b3  Added missing static method callback constants [wb, 2010-05-11]
- * @changes    1.0.0b2  Added the missing ::enableDebugging() [wb, 2010-05-05]
- * @changes    1.0.0b   The initial implementation [wb, 2010-05-05]
+ * @version    1.0.0b14
+ * @changes    1.0.0b14  Added a workaround for iconv having issues in MAMP 1.9.4+ [wb, 2011-07-26]
+ * @changes    1.0.0b13  Fixed handling of headers in relation to encoded-words being embedded inside of quoted strings [wb, 2011-07-26]
+ * @changes    1.0.0b12  Enhanced the error checking in ::write() [wb, 2011-06-03]
+ * @changes    1.0.0b11  Added code to work around PHP bug #42682 (http://bugs.php.net/bug.php?id=42682) where `stream_select()` doesn't work on 64bit machines from PHP 5.2.0 to 5.2.5, improved connectivity error handling and timeouts while reading data [wb, 2011-01-10]
+ * @changes    1.0.0b10  Fixed ::parseMessage() to properly handle a header format edge case and properly set the `text` and `html` keys even when the email has an explicit `Content-disposition: inline` header [wb, 2010-11-25]
+ * @changes    1.0.0b9   Fixed a bug in ::parseMessage() that could cause HTML alternate content to be included in the `inline` content array instead of the `html` element [wb, 2010-09-20]
+ * @changes    1.0.0b8   Fixed ::parseMessage() to be able to handle non-text/non-html multipart parts that do not have a `Content-disposition` header [wb, 2010-09-18]
+ * @changes    1.0.0b7   Fixed a typo in ::read() [wb, 2010-09-07]
+ * @changes    1.0.0b6   Fixed a typo from 1.0.0b4 [wb, 2010-07-21]
+ * @changes    1.0.0b5   Fixes for increased compatibility with various IMAP and POP3 servers, hacked around a bug in PHP 5.3 on Windows [wb, 2010-06-22]
+ * @changes    1.0.0b4   Added code to handle emails without an explicit `Content-type` header [wb, 2010-06-04]
+ * @changes    1.0.0b3   Added missing static method callback constants [wb, 2010-05-11]
+ * @changes    1.0.0b2   Added the missing ::enableDebugging() [wb, 2010-05-05]
+ * @changes    1.0.0b    The initial implementation [wb, 2010-05-05]
  */
 class fMailbox
 {
@@ -83,7 +92,7 @@ class fMailbox
 	 */
 	static private function decodeHeader($text)
 	{
-		$parts = preg_split('#("[^"]+"|=\?[^\?]+\?[QB]\?[^\?]+\?=)#i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+		$parts = preg_split('#(=\?[^\?]+\?[QB]\?[^\?]+\?=)#i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
 		
 		$part_with_encoding = array();
 		$output = '';
@@ -125,7 +134,7 @@ class fMailbox
 		}
 		
 		foreach ($part_with_encoding as $part) {
-			$output .= iconv($part['encoding'], 'UTF-8', $part['string']);
+			$output .= self::iconv($part['encoding'], 'UTF-8', $part['string']);
 		}
 		
 		return $output;
@@ -199,7 +208,7 @@ class fMailbox
 					break;
 				}
 			}
-			$content = iconv($charset, 'UTF-8', $content);
+			$content = self::iconv($charset, 'UTF-8', $content);
 			if ($structure['subtype'] == 'html') {
 				$content = preg_replace('#(content=(["\'])text/html\s*;\s*charset=(["\']?))' . preg_quote($charset, '#') . '(\3\2)#i', '\1utf-8\4', $content);
 			}
@@ -218,8 +227,22 @@ class fMailbox
 			return $info;
 		}
 		
+		
+		$has_disposition = !empty($structure['disposition']);
+		$is_text         = $structure['type'] == 'text' && $structure['subtype'] == 'plain';
+		$is_html         = $structure['type'] == 'text' && $structure['subtype'] == 'html';
+		
+		// If the part doesn't have a disposition and is not the default text or html, set the disposition to inline
+		if (!$has_disposition && ((!$is_text || !empty($info['text'])) && (!$is_html || !empty($info['html'])))) {
+			$is_web_image = $structure['type'] == 'image' && in_array($structure['subtype'], array('gif', 'png', 'jpeg', 'pjpeg'));
+			$structure['disposition'] = $is_text || $is_html || $is_web_image ? 'inline' : 'attachment';
+			$structure['disposition_fields'] = array();
+			$has_disposition = TRUE;
+		}
+		
+		
 		// Attachments or inline content
-		if ($structure['disposition']) {
+		if ($has_disposition) {
 			
 			$filename = '';
 			foreach ($structure['disposition_fields'] as $field => $value) {
@@ -235,6 +258,18 @@ class fMailbox
 				}
 			}
 			
+			// This automatically handles primary content that has a content-disposition header on it
+			if ($structure['disposition'] == 'inline' && $filename === '') {
+				if ($is_text && !isset($info['text'])) {
+					$info['text'] = $content;
+					return $info;
+				}
+				if ($is_html && !isset($info['html'])) {
+					$info['html'] = $content;
+					return $info;
+				}
+			}
+			
 			if (!isset($info[$structure['disposition']])) {
 				$info[$structure['disposition']] = array();
 			}
@@ -247,12 +282,12 @@ class fMailbox
 			return $info;
 		}
 		
-		if ($structure['type'] == 'text' && $structure['subtype'] == 'plain') {
+		if ($is_text) {
 			$info['text'] = $content;
 			return $info;
 		}
 		
-		if ($structure['type'] == 'text' && $structure['subtype'] == 'html') {
+		if ($is_html) {
 			$info['html'] = $content;
 			return $info;
 		}
@@ -341,6 +376,22 @@ class fMailbox
 		
 		return TRUE;
 	}
+
+
+	/**
+	 * This works around a bug in MAMP 1.9.4+ and PHP 5.3 where iconv()
+	 * does not seem to properly assign the return value to a variable, but
+	 * does work when returning the value.
+	 *
+	 * @param string $in_charset   The incoming character encoding
+	 * @param string $out_charset  The outgoing character encoding
+	 * @param string $string       The string to convert
+	 * @return string  The converted string
+	 */
+	static private function iconv($in_charset, $out_charset, $string)
+	{
+		return iconv($in_charset, $out_charset, $string);
+	}
 	
 	
 	/**
@@ -356,21 +407,16 @@ class fMailbox
 			if ($output) { $output .= ', '; }
 			
 			if (!isset($email[0])) {
-				$email[0] = !empty($email['personal']) ? $email['personal'] : 'NIL';
+				$email[0] = !empty($email['personal']) ? $email['personal'] : '';
 				$email[2] = $email['mailbox'];
-				$email[3] = !empty($email['host']) ? $email['host'] : 'NIL';
+				$email[3] = !empty($email['host']) ? $email['host'] : '';
 			}
-			
-			if ($email[0] != 'NIL') {
-				$output .= '"' . self::decodeHeader($email[0]) . '" <';
+
+			$address = $email[2];
+			if (!empty($email[3])) {
+				$address .= '@' . $email[3];
 			}
-			$output .= $email[2];
-			if ($email[3] != 'NIL') {
-				$output .= '@' . $email[3];
-			}
-			if ($email[0] != 'NIL') {
-				$output .= '>';
-			}
+			$output .= fEmail::combineNameEmail($email[0], $address);
 		}
 		return $output;
 	}
@@ -392,10 +438,17 @@ class fMailbox
 			if ($match[1][0] == '"' && substr($match[1], -1) == '"') {
 				$match[1] = substr($match[1], 1, -1);
 			}
-			return array('personal' => $match[1], 'mailbox' => $match[2], 'host' => $match[3]);
+			return array(
+				'personal' => self::decodeHeader($match[1]),
+				'mailbox' => self::decodeHeader($match[2]),
+				'host' => self::decodeHeader($match[3])
+			);
 		
 		} elseif (preg_match('~^[ \t]*(?:<[ \t]*)?' . $email_regex . '(?:[ \t]*>)?[ \t]*$~ixD', $string, $match)) {
-			return array('mailbox' => $match[1], 'host' => $match[2]);
+			return array(
+				'mailbox' => self::decodeHeader($match[1]),
+				'host' => self::decodeHeader($match[2])
+			);
 		
 		// This handles the outdated practice of including the personal
 		// part of the email in a comment after the email address
@@ -405,15 +458,25 @@ class fMailbox
 				$match[3] = substr($match[3], 1, -1);
 			}
 			
-			return array('personal' => $match[3], 'mailbox' => $match[1], 'host' => $match[2]);
+			return array(
+				'personal' => self::decodeHeader($match[3]),
+				'mailbox' => self::decodeHeader($match[1]),
+				'host' => self::decodeHeader($match[2])
+			);
 		}
 		
 		if (strpos($string, '@') !== FALSE) {
 			list ($mailbox, $host) = explode('@', $string, 2);
-			return array('mailbox' => $mailbox, 'host' => $host);
+			return array(
+				'mailbox' => self::decodeHeader($mailbox),
+				'host' => self::decodeHeader($host)
+			);
 		}
 		
-		return array('mailbox' => $string, 'host' => '');
+		return array(
+			'mailbox' => self::decodeHeader($string),
+			'host' => ''
+		);
 	}
 	
 	
@@ -435,7 +498,6 @@ class fMailbox
 		$headers = array();
 		foreach ($header_lines as $header_line) {
 			$header_line = preg_replace("#\r\n\s+#", '', $header_line);
-			$header_line = self::decodeHeader($header_line);
 			
 			list ($header, $value) = preg_split('#:\s*#', $header_line, 2);
 			$header = strtolower($header);
@@ -452,13 +514,13 @@ class fMailbox
 				$pieces = preg_split('#;\s*#', $value, 2);
 				$value = $pieces[0];
 				
-				$headers[$header] = array('value' => $value);
+				$headers[$header] = array('value' => self::decodeHeader($value));
 				
 				$fields = array();
 				if (!empty($pieces[1])) {
-					preg_match_all('#(\w+)=("([^"]+)"|(\S+))(?=;|$)#', $pieces[1], $matches, PREG_SET_ORDER);
+					preg_match_all('#(\w+)=("([^"]+)"|([^\s;]+))(?=;|$)#', $pieces[1], $matches, PREG_SET_ORDER);
 					foreach ($matches as $match) {
-						$fields[$match[1]] = !empty($match[4]) ? $match[4] : $match[3];
+						$fields[$match[1]] = self::decodeHeader(!empty($match[4]) ? $match[4] : $match[3]);
 					}
 				}
 				$headers[$header]['fields'] = $fields;
@@ -497,16 +559,16 @@ class fMailbox
 				}
 			
 			} elseif ($header == 'references') {
-				$headers[$header] = preg_split('#(?<=>)\s+(?=<)#', $value);
+				$headers[$header] = array_map(array('fMailbox', 'decodeHeader'), preg_split('#(?<=>)\s+(?=<)#', $value));
 				
 			} elseif ($header == 'received') {
 				if (!isset($headers[$header])) {
 					$headers[$header] = array();
 				}
-				$headers[$header][] = preg_replace('#\s+#', ' ', $value);
+				$headers[$header][] = preg_replace('#\s+#', ' ', self::decodeHeader($value));
 				
 			} else {
-				$headers[$header] = $value;
+				$headers[$header] = self::decodeHeader($value);
 			}
 		}
 		
@@ -647,7 +709,7 @@ class fMailbox
 		}
 		
 		if (!isset($headers['content-type'])) {
-			$header['content-type'] = array(
+			$headers['content-type'] = array(
 				'value'  => 'text/plain',
 				'fields' => array()
 			);
@@ -893,6 +955,8 @@ class fMailbox
 			return;
 		}
 		
+		fCore::startErrorCapture(E_WARNING);
+		
 		$this->connection = fsockopen(
 			$this->secure ? 'tls://' . $this->host : $this->host,
 			$this->port,
@@ -900,6 +964,17 @@ class fMailbox
 			$error_string,
 			$this->timeout
 		);
+		
+		foreach (fCore::stopErrorCapture('#ssl#i') as $error) {
+			throw new fConnectivityException('There was an error connecting to the server. A secure connection was requested, but was not available. Try a non-secure connection instead.');
+		}
+		
+		if (!$this->connection) {
+			throw new fConnectivityException('There was an error connecting to the server');
+		}
+		
+		stream_set_timeout($this->connection, $this->timeout);
+		
 		
 		if ($this->type == 'imap') {
 			if (!$this->secure && extension_loaded('openssl')) {
@@ -948,6 +1023,9 @@ class fMailbox
 						}
 						$res = stream_socket_enable_crypto($this->connection, TRUE, STREAM_CRYPTO_METHOD_TLS_CLIENT);
 					} while ($res === 0);
+					if ($res === FALSE) {
+						throw new fConnectivityException('Error establishing secure connection');
+					}
 				}
 			}
 			
@@ -1268,16 +1346,51 @@ class fMailbox
 		$except   = NULL;
 		$response = array();
 		
+		// PHP 5.2.0 to 5.2.5 has a bug on amd64 linux where stream_select()
+		// fails, so we have to fake it - http://bugs.php.net/bug.php?id=42682
+		static $broken_select = NULL;
+		if ($broken_select === NULL) {
+			$broken_select = strpos(php_uname('m'), '64') !== FALSE && fCore::checkVersion('5.2.0') && !fCore::checkVersion('5.2.6');
+		}
+		
 		// Fixes an issue with stream_select throwing a warning on PHP 5.3 on Windows
 		if (fCore::checkOS('windows') && fCore::checkVersion('5.3.0')) {
 			$select = @stream_select($read, $write, $except, $this->timeout);
+		
+		} elseif ($broken_select) {
+			$broken_select_buffer = NULL;
+			$start_time = microtime(TRUE);
+			$i = 0;
+			do {
+				if ($i) {
+					usleep(50000);
+				}
+				$char = fgetc($this->connection);
+				if ($char != "\x00" && $char !== FALSE) {
+					$broken_select_buffer = $char;
+				}
+				$i++;
+			} while ($broken_select_buffer === NULL && microtime(TRUE) - $start_time < $this->timeout);
+			$select = $broken_select_buffer !== NULL;
+			
 		} else {
 			$select = stream_select($read, $write, $except, $this->timeout);
 		}
 		
 		if ($select) {
 			while (!feof($this->connection)) {
-				$line = substr(fgets($this->connection), 0, -2);
+				$line = fgets($this->connection);
+				if ($line === FALSE) {
+					break;
+				}
+				$line = substr($line, 0, -2);
+				
+				// When we fake select, we have to handle what we've retrieved
+				if ($broken_select && $broken_select_buffer !== NULL) {
+					$line = $broken_select_buffer . $line;
+					$broken_select_buffer = NULL;
+				}
+				
 				$response[] = $line;
 				
 				// Automatically stop at the termination octet or a bad response
@@ -1295,7 +1408,7 @@ class fMailbox
 			}
 		}
 		if (fCore::getDebug($this->debug)) {
-			fCore::debug("Recieved:\n" . join("\r\n", $response), $this->debug);
+			fCore::debug("Received:\n" . join("\r\n", $response), $this->debug);
 		}
 		
 		if ($this->type == 'pop3') {
@@ -1343,7 +1456,8 @@ class fMailbox
 		}
 		
 		$res = fwrite($this->connection, $command);
-		if ($res === FALSE) {
+
+		if ($res === FALSE || $res === 0) {
 			throw new fConnectivityException(
 				'Unable to write data to %1$s server %2$s on port %3$s',
 				strtoupper($this->type),
@@ -1359,3 +1473,25 @@ class fMailbox
 		}
 	}
 }
+
+/**
+ * Copyright (c) 2010-2011 Will Bond <will@flourishlib.com>
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */

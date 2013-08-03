@@ -2,14 +2,20 @@
 /**
  * Provides file manipulation functionality for fActiveRecord classes
  * 
- * @copyright  Copyright (c) 2008-2010 Will Bond
+ * @copyright  Copyright (c) 2008-2011 Will Bond
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fORMFile
  * 
- * @version    1.0.0b24
+ * @version    1.0.0b30
+ * @changes    1.0.0b30  Updated code for the new fUpload API [wb, 2011-08-24]
+ * @changes    1.0.0b29  Fixed a bug when uploading a new file to a column with an existing file that was not found on the filesystem [wb, 2011-05-10]
+ * @changes    1.0.0b28  Backwards Compatibility Break - ::configureImageUploadColumn() no longer accepts the optional `$image_type` as the fourth parameter, instead ::addFImageMethodCall() must be called with `saveChanges` as the `$method` and the image type as the first parameter [wb, 2010-11-30]
+ * @changes    1.0.0b27  Fixed column inheritance to properly handle non-images and inheriting into image upload columns [wb, 2010-09-18]
+ * @changes    1.0.0b26  Enhanced ::configureColumnInheritance() to ensure both columns specified have been set up as file upload columns [wb, 2010-08-18]
+ * @changes    1.0.0b25  Updated code to work with the new fORM API [wb, 2010-08-06]
  * @changes    1.0.0b24  Changed validation messages array to use column name keys [wb, 2010-05-26]
  * @changes    1.0.0b23  Fixed a bug with ::upload() that could cause a method called on a non-object error in relation to the upload directory not being defined [wb, 2010-05-10]
  * @changes    1.0.0b22  Updated the TEMP_DIRECTORY constant to not include the trailing slash, code now uses DIRECTORY_SEPARATOR to fix issues on Windows [wb, 2010-04-28]
@@ -119,6 +125,10 @@ class fORMFile
 	
 	/**
 	 * Adds an fImage method call to the image manipulation for a column if an image file is uploaded
+	 * 
+	 * Any call to fImage::saveChanges() will be called last. If no explicit
+	 * method call to fImage::saveChanges() is made, it will be called
+	 * implicitly with default parameters.
 	 * 
 	 * @param  mixed  $class       The class name or instance of the class
 	 * @param  string $column      The column to call the method for
@@ -375,6 +385,20 @@ class fORMFile
 	{
 		$class = fORM::getClass($class);
 		
+		if (empty(self::$file_upload_columns[$class][$column])) {
+			throw new fProgrammerException(
+				'The column specified, %s, has not been configured as a file upload column',
+				$column
+			);
+		}
+		
+		if (empty(self::$file_upload_columns[$class][$inherit_from_column])) {
+			throw new fProgrammerException(
+				'The column specified, %s, has not been configured as a file upload column',
+				$column
+			);
+		}
+		
 		if (empty(self::$column_inheritence[$class])) {
 			self::$column_inheritence[$class] = array();
 		}
@@ -393,24 +417,15 @@ class fORMFile
 	 * This method works exactly the same as ::configureFileUploadColumn()
 	 * except that only image files are accepted.
 	 * 
+	 * To alter an image, including the file type, use ::addFImageMethodCall().
+	 * 
 	 * @param  mixed             $class       The class name or instance of the class
 	 * @param  string            $column      The column to set as a file upload column
 	 * @param  fDirectory|string $directory   The directory to upload to
-	 * @param  string            $image_type  The image type to save the image as: `NULL`, `'gif'`, `'jpg'`, `'png'`
 	 * @return void
 	 */
-	static public function configureImageUploadColumn($class, $column, $directory, $image_type=NULL)
+	static public function configureImageUploadColumn($class, $column, $directory)
 	{
-		$valid_image_types = array(NULL, 'gif', 'jpg', 'png');
-		if (!in_array($image_type, $valid_image_types)) {
-			$valid_image_types[0] = '{null}';
-			throw new fProgrammerException(
-				'The image type specified, %1$s, is not valid. Must be one of: %2$s.',
-				$image_type,
-				join(', ', $valid_image_types)
-			);
-		}
-		
 		self::configureFileUploadColumn($class, $column, $directory);
 		
 		$class = fORM::getClass($class);
@@ -427,7 +442,7 @@ class fORMFile
 			self::$image_upload_columns[$class] = array();
 		}
 		
-		self::$image_upload_columns[$class][$column] = $image_type;
+		self::$image_upload_columns[$class][$column] = TRUE;
 		
 		self::addFUploadMethodCall(
 			$class,
@@ -523,8 +538,9 @@ class fORMFile
 	 */
 	static public function encode($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
+		$column   = fGrammar::underscorize($subject);
 		$filename = ($values[$column] instanceof fFile) ? $values[$column]->getName() : NULL;
 		if ($filename && strpos($values[$column]->getPath(), self::TEMP_DIRECTORY . DIRECTORY_SEPARATOR . $filename) !== FALSE) {
 			$filename = self::TEMP_DIRECTORY . DIRECTORY_SEPARATOR . $filename;
@@ -632,7 +648,7 @@ class fORMFile
 		$class = get_class($object);
 		
 		foreach (self::$file_upload_columns[$class] as $column => $directory) {
-			if (fUpload::check($column) || fRequest::check('existing-' . $column) || fRequest::check('delete-' . $column)) {
+			if (fUpload::check($column, FALSE) || fRequest::check('existing-' . $column) || fRequest::check('delete-' . $column)) {
 				$method = 'upload' . fGrammar::camelize($column, TRUE);
 				$object->$method();
 			}
@@ -656,7 +672,8 @@ class fORMFile
 	 */
 	static public function prepare($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
+		$column = fGrammar::underscorize($subject);
 		
 		if (sizeof($parameters) > 1) {
 			throw new fProgrammerException(
@@ -720,9 +737,10 @@ class fORMFile
 	 */
 	static public function process($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
-		$class = get_class($object);
+		$column = fGrammar::underscorize($subject);
+		$class  = get_class($object);
 		
 		self::processImage($class, $column, $values[$column]);
 		
@@ -747,9 +765,14 @@ class fORMFile
 			return;
 		}
 		
+		$save_changes_called = FALSE;
+		
 		// Manipulate the image
 		if (!empty(self::$fimage_method_calls[$class][$column])) {
 			foreach (self::$fimage_method_calls[$class][$column] as $method_call) {
+				if ($method_call['method'] == 'saveChanges') {
+					$save_changes_called = TRUE;
+				}
 				$callback   = array($image, $method_call['method']);
 				$parameters = $method_call['parameters'];
 				if (!is_callable($callback)) {
@@ -762,11 +785,9 @@ class fORMFile
 			}
 		}
 		
-		// Save the changes
-		call_user_func(
-			array($image, 'saveChanges'),
-			isset(self::$image_upload_columns[$class][$column]) ? self::$image_upload_columns[$class][$column] : NULL
-		);
+		if (!$save_changes_called) {
+			call_user_func($image->saveChanges);
+		}
 	}
 	
 	
@@ -991,8 +1012,9 @@ class fORMFile
 	{
 		$class = get_class($object);
 		
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
+		$column   = fGrammar::underscorize($subject);
 		$doc_root = realpath($_SERVER['DOCUMENT_ROOT']);
 		
 		if (!array_key_exists(0, $parameters)) {
@@ -1110,7 +1132,8 @@ class fORMFile
 	{
 		$class = get_class($object);
 		
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
+		$column = fGrammar::underscorize($subject);
 		
 		$existing_temp_file = FALSE;
 		
@@ -1146,7 +1169,7 @@ class fORMFile
 				$current_file = $values[$column];
 				
 				// If the existing file is the same as the current file, we can just exit now
-				if ($current_file && $file->getPath() == $current_file->getPath()) {
+				if ($current_file && $current_file instanceof fFile && $file->getPath() == $current_file->getPath()) {
 					return;	
 				}
 				
@@ -1167,8 +1190,8 @@ class fORMFile
 				if ($file) {
 					
 					// Image columns will only inherit if it is an fImage object
-					if (!$file instanceof fImage && isset(self::$image_upload_columns[$class][$other_column])) {
-						continue;		
+					if (!$file instanceof fImage && isset(self::$image_upload_columns[$class]) && array_key_exists($other_column, self::$image_upload_columns[$class])) {
+						continue;
 					}
 					
 					$other_upload_dir = self::$file_upload_columns[$class][$other_column];
@@ -1253,7 +1276,7 @@ class fORMFile
 
 
 /**
- * Copyright (c) 2008-2010 Will Bond <will@flourishlib.com>
+ * Copyright (c) 2008-2011 Will Bond <will@flourishlib.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

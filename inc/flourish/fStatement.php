@@ -2,14 +2,19 @@
 /**
  * Representation of a prepared statement for use with the fDatabase class
  * 
- * @copyright  Copyright (c) 2010 Will Bond
+ * @copyright  Copyright (c) 2010-2011 Will Bond
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fStatement
  * 
- * @version    1.0.0b2
+ * @version    1.0.0b7
+ * @changes    1.0.0b7  Fixed handling of arrays of values for ::execute(), ::executeQuery() and ::executeUnbufferedQuery(), fixed escaping of values that become `NULL` [wb, 2011-05-09]
+ * @changes    1.0.0b6  Added ::getUntranslatedSQL() [wb, 2011-01-09]
+ * @changes    1.0.0b5  Fixed an edge case where the mysqli extension would leak memory when fetching a `TEXT` or `BLOB` column [wb, 2010-08-28]
+ * @changes    1.0.0b4  Updated class to use fCore::startErrorCapture() instead of `error_reporting()` [wb, 2010-08-09]
+ * @changes    1.0.0b3  Backwards Compatibility Break - removed ODBC support. Fixed UTF-8 support for the `pdo_dblib` extension. [wb, 2010-07-31]
  * @changes    1.0.0b2  Added IBM DB2 support [wb, 2010-04-13]
  * @changes    1.0.0b   The initial implementation [wb, 2010-03-02]
  */
@@ -78,10 +83,10 @@ class fStatement
 	 * @internal
 	 * 
 	 * @param  fDatabase $database            The database object this result set was created from
-	 * @param  string    $query               MSSQL only: the character set to transcode from since MSSQL doesn't do UTF-8
+	 * @param  string    $query               The SQL statement to prepare
 	 * @param  array     $placeholders        The data type placeholders
-	 * @param  string    $untranslated_query  If the SQL was translated - only relevant for Oracle
-	 * @return fResult
+	 * @param  string    $untranslated_query  The original untranslated SQL, if applicable
+	 * @return fStatement
 	 */
 	public function __construct($database, $query, $placeholders, $untranslated_sql)
 	{
@@ -97,12 +102,17 @@ class fStatement
 		$this->untranslated_sql = $untranslated_sql;
 		
 		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
 		
 		switch ($extension) {
 			// These database extensions don't have prepared statements
 			case 'mssql':
 			case 'mysql':
+			case 'pdo_dblib':
 			case 'sqlite':
+				$query = vsprintf($query, $placeholders);
 				break;
 				
 			case 'oci8':	
@@ -115,7 +125,6 @@ class fStatement
 				
 			case 'ibm_db2':
 			case 'mysqli':
-			case 'odbc':
 			case 'pdo':
 			case 'sqlsrv':
 				$question_marks = array();
@@ -136,12 +145,13 @@ class fStatement
 		
 		$connection = $this->database->getConnection();
 		
-		$old_level = error_reporting(error_reporting() & ~E_WARNING);
+		fCore::startErrorCapture(E_WARNING);
 		
 		switch ($extension) {
 			// These database extensions don't have prepared statements
 			case 'mssql':
 			case 'mysql':
+			case 'pdo_dblib':
 			case 'sqlite':
 				$statement = $query;
 				break;
@@ -158,10 +168,6 @@ class fStatement
 				$statement = oci_parse($connection, $query);
 				break;
 				
-			case 'odbc':
-				$statement = odbc_prepare($connection, $query);
-				break;
-				
 			case 'pdo':
 				$statement = $connection->prepare($query);
 				break;
@@ -176,14 +182,22 @@ class fStatement
 			case 'sqlsrv':
 				$params = array();
 				for ($i = 0; $i < sizeof($placeholders); $i++) {
-					$this->bound_params[$i] = NULL;
+					if ($placeholders[$i] == '%s') {
+						$this->bound_params[$i] = array(
+							NULL,
+							SQLSRV_PARAM_IN,
+							SQLSRV_PHPTYPE_STRING('UTF-8')
+						);	
+					} else {
+						$this->bound_params[$i] = array(NULL);
+					}
 					$params[$i] =& $this->bound_params[$i];
 				}
 				$statement = sqlsrv_prepare($connection, $query, $params);
 				break;
 		}
 		
-		error_reporting($old_level);
+		fCore::stopErrorCapture();
 		
 		if (!$statement) {
 			switch ($extension) {
@@ -198,10 +212,6 @@ class fStatement
 				case 'oci8':
 					$error_info = oci_error($statement);
 					$message = $error_info['message'];
-					break;
-				
-				case 'odbc':
-					$message = odbc_errormsg($connection);
 					break;
 					
 				case 'pgsql':
@@ -253,17 +263,18 @@ class fStatement
 			return;	
 		}
 		
-		switch ($this->database->getExtension()) {
+		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
+		
+		switch ($extension) {
 			case 'ibm_db2':
 				db2_free_stmt($this->statement);
 				break;
 				
 			case 'pdo':
 				$this->statement->closeCursor();
-				break;
-				
-			case 'odbc':
-				odbc_free_result($this->statement);
 				break;
 				
 			case 'oci8':
@@ -305,12 +316,20 @@ class fStatement
 	 */
 	public function execute($params, &$extra, $different)
 	{
+		if (is_array($params) && count($params) == 1 && is_array($params[0]) && count($this->placeholders) > 1) {
+			$params = $params[0];
+		}
+
 		if ($different && $this->used) {
 			$this->regenerateStatement();
 		}
 		$this->used = TRUE;
 		
-		$extension  = $this->database->getExtension();
+		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
+		
 		$connection = $this->database->getConnection();
 		$statement  = $this->statement;
 		
@@ -339,10 +358,6 @@ class fStatement
 				$extra  = $this->statement;
 				break;
 				
-			case 'odbc':
-				$result = odbc_execute($this->statement, $params);
-				break;
-				
 			case 'pgsql':
 				$result = pg_execute($connection, $this->identifier, $params);
 				break;
@@ -358,6 +373,22 @@ class fStatement
 			case 'pdo':
 				$extra  = $statement;
 				$result = $statement->execute();
+				break;
+			
+			case 'pdo_dblib':
+				$sql = $this->database->escape($statement, $params);
+				if (!fCore::checkOS('windows')) {
+					$result = $connection->query($sql);
+					if ($result instanceof PDOStatement) {
+						$extra = $result;
+						$result->closeCursor();
+						$result = TRUE;
+					} else {
+						$result = FALSE;
+					}
+				} else {
+					$result = $connection->exec($sql);
+				}
 				break;
 		}
 		
@@ -378,12 +409,20 @@ class fStatement
 	 */
 	public function executeQuery($result, $params, &$extra, $different)
 	{
+		if (is_array($params) && count($params) == 1 && is_array($params[0]) && count($this->placeholders) > 1) {
+			$params = $params[0];
+		}
+
 		if ($different && $this->used) {
 			$this->regenerateStatement();
 		}
 		$this->used = TRUE;
 		
-		$extension  = $this->database->getExtension();
+		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
+		
 		$connection = $this->database->getConnection();
 		$statement  = $this->statement;
 		
@@ -415,12 +454,12 @@ class fStatement
 			case 'mysqli':
 				$extra = $this->statement;
 				if ($statement->execute()) {
+					$statement->store_result();
 					$rows = array();
 					$meta = $statement->result_metadata();
 					if ($meta) {
 						$row_references = array();
-						while ($field = $meta->fetch_field())
-						{
+						while ($field = $meta->fetch_field()) {
 							$row_references[] = &$row[$field->name];
 						}
 
@@ -433,7 +472,9 @@ class fStatement
 								$copied_row[$key] = $val;
 							}
 							$rows[] = $copied_row;
-						} 
+						}
+						unset($row_references);
+						$meta->free_result();
 					}
 					$result->setResult($rows);
 					$statement->free_result();
@@ -445,26 +486,15 @@ class fStatement
 			case 'oci8':
 				$extra = $this->statement;
 				if (oci_execute($extra, $this->database->isInsideTransaction() ? OCI_DEFAULT : OCI_COMMIT_ON_SUCCESS)) {
-					oci_fetch_all($extra, $rows, 0, -1, OCI_FETCHSTATEMENT_BY_ROW + OCI_ASSOC);
-					$result->setResult($rows);
-					unset($rows);	
-				} else {
-					$result->setResult(FALSE);
-				}
-				break;
-			
-			case 'odbc':
-				$extra = $this->statement;
-				if (odbc_execute($statement, $params)) {
-					$rows = array();
-					// Allow up to 1MB of binary data
-					odbc_longreadlen($statement, 1048576);
-					odbc_binmode($statement, ODBC_BINMODE_CONVERT);
-					while ($row = odbc_fetch_array($statement)) {
-						$rows[] = $row;
+					// oci8 complains if you try to fetch results multiple times from a prepared statement
+					// if the statement does not returns any rows, so we ignore easy-to-detect non-selects
+					if (!preg_match('#\s*(INSERT|UPDATE|DELETE)\s+#i', $this->sql)) {
+						oci_fetch_all($extra, $rows, 0, -1, OCI_FETCHSTATEMENT_BY_ROW + OCI_ASSOC);
+					} else {
+						$rows = array();
 					}
 					$result->setResult($rows);
-					unset($rows);
+					unset($rows);	
 				} else {
 					$result->setResult(FALSE);
 				}
@@ -501,7 +531,27 @@ class fStatement
 					if (!$extra->execute()) {
 						$returned_rows = FALSE;
 					} else {
-						$returned_rows = $extra->fetchAll(PDO::FETCH_ASSOC);
+						// This fixes a segfault issue with blobs and fetchAll() for pdo_ibm
+						if ($this->database->getType() == 'db2') {
+							$returned_rows = array();
+							$scanned_for_blobs = FALSE;
+							$blob_columns = array();
+							while (($row = $extra->fetch(PDO::FETCH_ASSOC)) !== FALSE) {
+								if (!$scanned_for_blobs) {
+									foreach ($row as $key => $value) {
+										if (is_resource($value)) {
+											$blob_columns[] = $key;
+										}
+									}
+								}
+								foreach ($blob_columns as $blob_column) {
+									$row[$blob_column] = stream_get_contents($row[$blob_column]);
+								}
+								$returned_rows[] = $row;
+							}
+						} else {
+							$returned_rows = $extra->fetchAll(PDO::FETCH_ASSOC);
+						}
 						
 						// The pdo_pgsql driver likes to return empty rows equal to the number of affected rows for insert and deletes
 						if ($this->database->getType() == 'postgresql' && $returned_rows && $returned_rows[0] == array()) {
@@ -510,6 +560,12 @@ class fStatement
 					}
 				}
 				
+				$result->setResult($returned_rows);
+				break;
+			
+			case 'pdo_dblib':
+				$extra = $connection->query($this->database->escape($statement, $params));
+				$returned_rows = (is_object($extra)) ? $extra->fetchAll(PDO::FETCH_ASSOC) : $extra;
 				$result->setResult($returned_rows);
 				break;
 		}
@@ -531,12 +587,20 @@ class fStatement
 	 */
 	public function executeUnbufferedQuery($result, $params, &$extra, $different)
 	{
+		if (is_array($params) && count($params) == 1 && is_array($params[0]) && count($this->placeholders) > 1) {
+			$params = $params[0];
+		}
+
 		if ($different && $this->used) {
 			$this->regenerateStatement();
 		}
 		$this->used = TRUE;
 		
-		$extension  = $this->database->getExtension();
+		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
+		
 		$connection = $this->database->getConnection();
 		$statement  = $this->statement;
 		
@@ -579,17 +643,6 @@ class fStatement
 				$result->setResult(oci_execute($statement, $this->database->isInsideTransaction() ? OCI_DEFAULT : OCI_COMMIT_ON_SUCCESS));
 				break;
 			
-			case 'odbc':
-				$extra = odbc_execute($statement, $params);
-				if ($extra) {
-					odbc_longreadlen($statement, 1048576);
-					odbc_binmode($statement, ODBC_BINMODE_CONVERT);
-					$statement_holder->statement = $statement;
-				} else {
-					$result->setResult($extra);
-				}
-				break;
-			
 			case 'pgsql':
 				$result->setResult(pg_execute($connection, $this->identifier, $params));
 				break;
@@ -615,6 +668,11 @@ class fStatement
 					$result->setResult($extra);	
 				}
 				break;
+			
+			case 'pdo_dblib':
+				$sql = $this->database->escape($statement, $params);
+				$result->setResult($res = $connection->query($sql));
+				break;
 		}
 		
 		if ($statement_holder->statement) {
@@ -637,6 +695,17 @@ class fStatement
 	
 	
 	/**
+	 * Returns the untranslated SQL for the prepared statement
+	 * 
+	 * @return string  The untranslated SQL statement
+	 */
+	public function getUntranslatedSQL()
+	{
+		return $this->untranslated_sql;	
+	}
+	
+	
+	/**
 	 * Takes an array of parameters and prepares them for use in a prepared statement
 	 * 
 	 * @param  array $params  The parameters
@@ -644,8 +713,12 @@ class fStatement
 	 */
 	private function prepareParams($params)
 	{
-		$type       = $this->database->getType();
-		$extension  = $this->database->getExtension();
+		$type      = $this->database->getType();
+		$extension = $this->database->getExtension();
+		if ($extension == 'pdo' && $this->database->getType() == 'mssql') {
+			$extension = 'pdo_dblib';
+		}
+		
 		$statement  = $this->statement;
 		$new_params = array();
 		
@@ -664,7 +737,7 @@ class fStatement
 			
 			// A few of the database extensions don't have prepared statement support
 			// so instead we don't bother preparing the params, we just do a normal escape
-			if (in_array($extension, array('mssql', 'mysql', 'sqlite'))) {
+			if (in_array($extension, array('mssql', 'mysql', 'pdo_dblib', 'sqlite'))) {
 				$new_params[] = $params[$i];
 				continue;		
 			}
@@ -676,15 +749,22 @@ class fStatement
 			if (!in_array($placeholder, array('%l', '%s'))) {
 				
 				$params[$i] = $this->database->escape($placeholder, $params[$i]);
-				
-				// Dates, times, timestamps and some booleans need to be unquoted
-				if (in_array($placeholder, array('%d', '%t', '%p')) || (($type == 'mssql' || $type == 'sqlite' || $type == 'db2') && $placeholder == '%b')) {
-					$params[$i] = substr($params[$i], 1, -1);	
-				
-				// Some booleans need to be converted to integers
-				} elseif ($placeholder == '%b' && ($type == 'postgresql' || $type == 'mysql')) {
-					$params[$i] = $params[$i] == 'TRUE' ? 1 : 0;
-				}
+
+				if ($params[$i] === 'NULL') {
+					$params[$i] = NULL;
+
+				} else {
+					// Dates, times, timestamps and some booleans need to be unquoted
+					$date_time_types = in_array($placeholder, array('%d', '%t', '%p'));
+					$bool_types      = ($type == 'mssql' || $type == 'sqlite' || $type == 'db2') && $placeholder == '%b';
+					if ($date_time_types || $bool_types) {
+						$params[$i] = substr($params[$i], 1, -1);	
+					
+					// Some booleans need to be converted to integers
+					} elseif ($placeholder == '%b' && ($type == 'postgresql' || $type == 'mysql')) {
+						$params[$i] = $params[$i] == 'TRUE' ? 1 : 0;
+					}
+				}				
 					
 			// For strings and blobs we need to manually cast objects
 			// This is done in fDatabase::escape() for all other types
@@ -747,14 +827,7 @@ class fStatement
 							break;
 					}
 					break;
-			
-				case 'odbc':
-					// ODBC does not allow strings that start and end with single quotes, so a space must be added at the end
-					if (is_string($params[$i]) && strlen($params[$i]) >= 2 && $params[$i][0] == "'" && $params[$i][strlen($params[$i])-1] == "'") {
-						$params[$i] .= ' ';
-					}
-					break;
-			
+				
 				case 'pdo':
 					switch ($placeholder) {
 						case '%l':
@@ -764,7 +837,7 @@ class fStatement
 							$statement->bindParam($i+1, $params[$i], $params[$i] === NULL ? PDO::PARAM_NULL : PDO::PARAM_BOOL);
 							break;
 						case '%i':
-							$statement->bindParam($i+1, $params[$i], $params[$i] === NULL ? PDO::PARAM_NULL : PDO::PARAM_INT);
+							$statement->bindParam($i+1, $params[$i], $params[$i] === NULL && $type != 'db2' ? PDO::PARAM_NULL : PDO::PARAM_INT);
 							break;
 						case '%d':
 						case '%f': // For some reason float are supposed to be bound as strings
@@ -777,7 +850,7 @@ class fStatement
 					break;
 				
 				case 'sqlsrv':
-					$this->bound_params[$i] = $params[$i];
+					$this->bound_params[$i][0] = $params[$i];
 					break;
 			}
 			
@@ -794,17 +867,16 @@ class fStatement
 	
 	
 	/**
-	 * Both the MSSQL and MySQL PDO drivers have issues if you try
-	 * to reuse a prepared statement without any placeholders.
+	 * The MySQL PDO driver has issues if you try to reuse a prepared statement
+	 * without any placeholders.
 	 * 
 	 * @return void
 	 */
 	private function regenerateStatement()
 	{
 		$is_pdo   = $this->database->getExtension() == 'pdo';
-		$is_mssql = $this->database->getType() == 'mssql';
 		$is_mysql = $this->database->getType() == 'mysql';
-		if ($this->placeholders || !$is_pdo || (!$is_mssql && !$is_mysql)) {
+		if ($this->placeholders || !$is_pdo || !$is_mysql) {
 			return;
 		}
 		
@@ -815,7 +887,7 @@ class fStatement
 
 
 /**
- * Copyright (c) 2010 Will Bond <will@flourishlib.com>
+ * Copyright (c) 2010-2011 Will Bond <will@flourishlib.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

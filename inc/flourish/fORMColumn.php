@@ -2,14 +2,16 @@
 /**
  * Provides special column functionality for fActiveRecord classes
  * 
- * @copyright  Copyright (c) 2008-2010 Will Bond
+ * @copyright  Copyright (c) 2008-2011 Will Bond
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fORMColumn
  * 
- * @version    1.0.0b13
+ * @version    1.0.0b15
+ * @changes    1.0.0b15  Fixed a bug with empty string email values passing through required validation [wb, 2011-07-29]
+ * @changes    1.0.0b14  Updated code to work with the new fORM API [wb, 2010-08-06]
  * @changes    1.0.0b13  Fixed ::reflect() to include some missing parameters [wb, 2010-06-08]
  * @changes    1.0.0b12  Changed validation messages array to use column name keys [wb, 2010-05-26]
  * @changes    1.0.0b11  Fixed a bug with ::prepareLinkColumn() returning `http://` for empty link columns and not adding `http://` to links that contained a /, but did not start with it [wb, 2010-03-16]
@@ -314,8 +316,9 @@ class fORMColumn
 	 */
 	static public function encodeNumberColumn($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
+		$column      = fGrammar::underscorize($subject);
 		$class       = get_class($object);
 		$schema      = fORMSchema::retrieve($class);
 		$table       = fORM::tablize($class);
@@ -351,8 +354,9 @@ class fORMColumn
 	 */
 	static public function generate($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
+		$column = fGrammar::underscorize($subject);
 		$class  = get_class($object);
 		$table  = fORM::tablize($class);
 		
@@ -457,9 +461,10 @@ class fORMColumn
 	 */
 	static public function prepareLinkColumn($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
-		$value = $values[$column];
+		$column = fGrammar::underscorize($subject);
+		$value  = $values[$column];
 		
 		// Fix domains that don't have the protocol to start
 		if (strlen($value) && !preg_match('#^https?://|^/#iD', $value)) {
@@ -492,8 +497,9 @@ class fORMColumn
 	 */
 	static public function prepareNumberColumn($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
+		$column      = fGrammar::underscorize($subject);
 		$class       = get_class($object);
 		$table       = fORM::tablize($class);
 		$schema      = fORMSchema::retrieve($class);
@@ -689,9 +695,10 @@ class fORMColumn
 	 */
 	static public function setEmailColumn($object, &$values, &$old_values, &$related_records, &$cache, $method_name, $parameters)
 	{
-		list ($action, $column) = fORM::parseMethod($method_name);
+		list ($action, $subject) = fORM::parseMethod($method_name);
 		
-		$class = get_class($object);
+		$column = fGrammar::underscorize($subject);
+		$class  = get_class($object);
 		
 		if (count($parameters) < 1) {
 			throw new fProgrammerException(
@@ -703,6 +710,10 @@ class fORMColumn
 		$email = $parameters[0];
 		if (preg_match('#^\s*[a-z0-9\\.\'_\\-\\+]+@(?:[a-z0-9\\-]+\.)+[a-z]{2,}\s*$#iD', $email)) {
 			$email = trim($email);	
+		}
+
+		if ($email === '') {
+			$email = NULL;
 		}
 		
 		fActiveRecord::assign($values, $old_values, $column, $email);
@@ -806,7 +817,7 @@ class fORMColumn
 		}
 		
 		foreach (self::$link_columns[$class] as $column => $enabled) {
-			if (!strlen($values[$column])) {
+			if (!is_string($values[$column])) {
 				continue;
 			}
 			
@@ -834,7 +845,7 @@ class fORMColumn
 
 
 /**
- * Copyright (c) 2008-2010 Will Bond <will@flourishlib.com>
+ * Copyright (c) 2008-2011 Will Bond <will@flourishlib.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

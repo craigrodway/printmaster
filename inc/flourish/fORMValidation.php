@@ -2,7 +2,7 @@
 /**
  * Handles validation for fActiveRecord classes
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond, others
+ * @copyright  Copyright (c) 2007-2011 Will Bond, others
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @author     Jeff Turcotte [jt] <jeff.turcotte@gmail.com>
  * @license    http://flourishlib.com/license
@@ -10,7 +10,12 @@
  * @package    Flourish
  * @link       http://flourishlib.com/fORMValidation
  * 
- * @version    1.0.0b26
+ * @version    1.0.0b31
+ * @changes    1.0.0b31  Fixed ::checkConditionalRule() to require columns that default to an empty string and are currently set to that value [wb, 2011-06-14]
+ * @changes    1.0.0b30  Fixed a bug with ::setMessageOrder() not accepting a variable number of parameters like fValidation::setMessageOrder() does [wb, 2011-03-07]
+ * @changes    1.0.0b29  Updated ::addManyToManyRule() and ::addOneToManyRule() to prefix any namespace from `$class` to `$related_class` if not already present [wb, 2010-11-24]
+ * @changes    1.0.0b28  Updated the class to work with the new nested array structure for validation messages [wb, 2010-10-03]
+ * @changes    1.0.0b27  Fixed ::hasValue() to properly detect zero-value floats, made ::hasValue() internal public [wb, 2010-07-26]
  * @changes    1.0.0b26  Improved the error message for integers to say `whole number` instead of just `number` [wb, 2010-05-29]
  * @changes    1.0.0b25  Added ::addRegexRule(), changed validation messages array to use column name keys [wb, 2010-05-26]
  * @changes    1.0.0b24  Added ::addRequiredRule() for required columns that aren't automatically handled via schema detection [wb, 2010-04-06]
@@ -51,6 +56,7 @@ class fORMValidation
 	const addRequiredRule          = 'fORMValidation::addRequiredRule';
 	const addStringReplacement     = 'fORMValidation::addStringReplacement';
 	const addValidValuesRule       = 'fORMValidation::addValidValuesRule';
+	const hasValue                 = 'fORMValidation::hasValue';
 	const inspect                  = 'fORMValidation::inspect';
 	const removeStringReplacement  = 'fORMValidation::removeStringReplacement';
 	const removeRegexReplacement   = 'fORMValidation::removeRegexReplacement';
@@ -187,7 +193,8 @@ class fORMValidation
 	 */
 	static public function addManyToManyRule($class, $related_class, $route=NULL)
 	{
-		$class = fORM::getClass($class);
+		$class         = fORM::getClass($class);
+		$related_class = fORM::getRelatedClass($class, $related_class);
 		
 		if (!isset(self::$related_one_or_more_rules[$class])) {
 			self::$related_one_or_more_rules[$class] = array();
@@ -243,7 +250,8 @@ class fORMValidation
 	 */
 	static public function addOneToManyRule($class, $related_class, $route=NULL)
 	{
-		$class = fORM::getClass($class);
+		$class         = fORM::getClass($class);
+		$related_class = fORM::getRelatedClass($class, $related_class);
 		
 		if (!isset(self::$related_one_or_more_rules[$class])) {
 			self::$related_one_or_more_rules[$class] = array();
@@ -434,19 +442,19 @@ class fORMValidation
 	/**
 	 * Validates a value against the database schema
 	 *
+	 * @param  fSchema        $schema       The schema object for the object
 	 * @param  fActiveRecord  $object       The instance of the class the column is part of
 	 * @param  string         $column       The column to check
 	 * @param  array          &$values      An associative array of all values going into the row (needs all for multi-field unique constraint checking)
 	 * @param  array          &$old_values  The old values from the record
 	 * @return string  An error message for the column specified
 	 */
-	static private function checkAgainstSchema($object, $column, &$values, &$old_values)
+	static private function checkAgainstSchema($schema, $object, $column, &$values, &$old_values)
 	{
 		$class = get_class($object);
 		$table = fORM::tablize($class);
 		
-		$schema = fORMSchema::retrieve($class);
-		$info   = $schema->getColumnInfo($table, $column);
+		$info = $schema->getColumnInfo($table, $column);
 		// Make sure a value is provided for required columns
 		$schema_not_null = $info['not_null'] && $info['default'] === NULL && $info['auto_increment'] === FALSE;
 		$rule_not_null   = isset(self::$required_rules[$class][$column]);
@@ -457,7 +465,7 @@ class fORMValidation
 			);
 		}
 		
-		$message = self::checkDataType($class, $column, $values[$column]);
+		$message = self::checkDataType($schema, $class, $column, $values[$column]);
 		if ($message) { return $message; }
 		
 		// Make sure a valid value is chosen
@@ -497,7 +505,7 @@ class fORMValidation
 			);
 		}
 		
-		$message = self::checkForeignKeyConstraints($class, $column, $values);
+		$message = self::checkForeignKeyConstraints($schema, $class, $column, $values);
 		if ($message) { return $message; }
 	}
 	
@@ -505,14 +513,15 @@ class fORMValidation
 	/**
 	 * Validates against a conditional rule
 	 *
-	 * @param  string $class                The class this rule applies to
-	 * @param  array  &$values              An associative array of all values for the record
-	 * @param  array  $main_columns         The columns to check for a value
-	 * @param  array  $conditional_values   If `NULL`, any value in the main column will trigger the conditional columns, otherwise the value must match one of these
-	 * @param  array  $conditional_columns  The columns that are to be required
+	 * @param  fSchema $schema               The schema object for the class specified
+	 * @param  string  $class                The class this rule applies to
+	 * @param  array   &$values              An associative array of all values for the record
+	 * @param  array   $main_columns         The columns to check for a value
+	 * @param  array   $conditional_values   If `NULL`, any value in the main column will trigger the conditional columns, otherwise the value must match one of these
+	 * @param  array   $conditional_columns  The columns that are to be required
 	 * @return array  The error messages for the rule specified
 	 */
-	static private function checkConditionalRule($class, &$values, $main_columns, $conditional_values, $conditional_columns)
+	static private function checkConditionalRule($schema, $class, &$values, $main_columns, $conditional_values, $conditional_columns)
 	{
 		$check_for_missing_values = FALSE;
 		
@@ -529,9 +538,11 @@ class fORMValidation
 			return;	
 		}
 		
+		$table = fORM::tablize($class);
 		$messages = array();
 		foreach ($conditional_columns as $conditional_column) {
-			if ($values[$conditional_column] !== NULL) { continue; }
+			$default_is_space = $schema->getColumnInfo($table, $conditional_column, 'default') === '';
+			if ($values[$conditional_column] !== NULL && (!$default_is_space || ($default_is_space && $values[$conditional_column] !== ''))) { continue; }
 			$messages[$conditional_column] = self::compose(
 				'%sPlease enter a value',
 				fValidationException::formatField(fORM::getColumnName($class, $conditional_column))
@@ -546,15 +557,15 @@ class fORMValidation
 	/**
 	 * Validates a value against the database data type
 	 *
-	 * @param  string $class   The class the column is part of
-	 * @param  string $column  The column to check
-	 * @param  mixed  $value   The value to check
+	 * @param  fSchema $schema  The schema object for the class
+	 * @param  string  $class   The class the column is part of
+	 * @param  string  $column  The column to check
+	 * @param  mixed   $value   The value to check
 	 * @return string  An error message for the column specified
 	 */
-	static private function checkDataType($class, $column, $value)
+	static private function checkDataType($schema, $class, $column, $value)
 	{
 		$table       = fORM::tablize($class);
-		$schema      = fORMSchema::retrieve($class);
 		$column_info = $schema->getColumnInfo($table, $column);
 		
 		if ($value !== NULL) {
@@ -625,20 +636,19 @@ class fORMValidation
 	/**
 	 * Validates values against foreign key constraints
 	 *
-	 * @param  string $class    The class to check the foreign keys for
-	 * @param  string $column   The column to check
-	 * @param  array  &$values  The values to check
+	 * @param  fSchema $schema   The schema object for the class
+	 * @param  string  $class    The class to check the foreign keys for
+	 * @param  string  $column   The column to check
+	 * @param  array   &$values  The values to check
 	 * @return string  An error message for the column specified
 	 */
-	static private function checkForeignKeyConstraints($class, $column, &$values)
+	static private function checkForeignKeyConstraints($schema, $class, $column, &$values)
 	{
 		if ($values[$column] === NULL) {
 			return;
 		}
 		
-		$db     = fORMDatabase::retrieve($class, 'read');
-		$schema = fORMSchema::retrieve($class);
-		
+		$db           = fORMDatabase::retrieve($class, 'read');
 		$table        = fORM::tablize($class);
 		$foreign_keys = $schema->getKeys($table, 'foreign');
 		
@@ -743,18 +753,18 @@ class fORMValidation
 	/**
 	 * Makes sure a record with the same primary keys is not already in the database
 	 *
+	 * @param  fSchema        $schema       The schema object for the object
 	 * @param  fActiveRecord  $object       The instance of the class to check
 	 * @param  array          &$values      An associative array of all values going into the row (needs all for multi-field unique constraint checking)
 	 * @param  array          &$old_values  The old values for the record
 	 * @return array  A single element associative array with the key being the primary keys joined by ,s and the value being the error message
 	 */
-	static private function checkPrimaryKeys($object, &$values, &$old_values)
+	static private function checkPrimaryKeys($schema, $object, &$values, &$old_values)
 	{
 		$class = get_class($object);
 		$table = fORM::tablize($class);
 		
-		$db     = fORMDatabase::retrieve($class, 'read');
-		$schema = fORMSchema::retrieve($class);
+		$db = fORMDatabase::retrieve($class, 'read');
 		
 		$pk_columns = $schema->getKeys($table, 'primary');
 		$columns    = array();
@@ -900,19 +910,18 @@ class fORMValidation
 	/**
 	 * Validates values against unique constraints
 	 *
+	 * @param  fSchema        $schema       The schema object for the object
 	 * @param  fActiveRecord  $object       The instance of the class to check
 	 * @param  array          &$values      The values to check
 	 * @param  array          &$old_values  The old values for the record
 	 * @return array  An aray of error messages for the unique constraints
 	 */
-	static private function checkUniqueConstraints($object, &$values, &$old_values)
+	static private function checkUniqueConstraints($schema, $object, &$values, &$old_values)
 	{
 		$class = get_class($object);
 		$table = fORM::tablize($class);
 		
-		$db     = fORMDatabase::retrieve($class, 'read');
-		$schema = fORMSchema::retrieve($class);
-		
+		$db       = fORMDatabase::retrieve($class, 'read');
 		$key_info = $schema->getKeys($table);
 		
 		$pk_columns  = $key_info['primary'];
@@ -1105,13 +1114,15 @@ class fORMValidation
 	 *  - Integer: 0
 	 *  - String: ''
 	 *
+	 * @internal
+	 * 
 	 * @param  fSchema $schema   The schema object for the table
 	 * @param  string  $class    The class the column is part of
 	 * @param  array   &$values  An associative array of all values for the record
 	 * @param  array   $columns  The column to check
 	 * @return string  An error message for the rule
 	 */
-	static private function hasValue($schema, $class, &$values, $column)
+	static public function hasValue($schema, $class, &$values, $column)
 	{
 		$value = $values[$column];
 		
@@ -1150,7 +1161,7 @@ class fORMValidation
 				break;
 			
 			case 'float':
-				if (preg_match('#^0(\.0*)?|\.0+$#D', $value)) {
+				if (preg_match('#^0(\.0*)?$|^\.0+$#D', $value)) {
 					return FALSE;	
 				}
 				break;
@@ -1285,7 +1296,8 @@ class fORMValidation
 		
 		foreach ($messages as $key => $message) {
 			foreach ($matches as $num => $match_string) {
-				if (fUTF8::ipos($message, $match_string) !== FALSE) {
+				$string = is_array($message) ? $message['name'] : $message;
+				if (fUTF8::ipos($string, $match_string) !== FALSE) {
 					$ordered_items[$num][$key] = $message;
 					continue 2;
 				}
@@ -1314,19 +1326,29 @@ class fORMValidation
 	static public function replaceMessages($class, $messages)
 	{
 		if (isset(self::$string_replacements[$class])) {
-			$messages = str_replace(
-				self::$string_replacements[$class]['search'],
-				self::$string_replacements[$class]['replace'],
-				$messages	
-			);
+			foreach ($messages as $key => $message) {
+				if (is_array($message)) {
+					continue;
+				}
+				$messages[$key] = str_replace(
+					self::$string_replacements[$class]['search'],
+					self::$string_replacements[$class]['replace'],
+					$message	
+				);
+			}
 		}
 		
 		if (isset(self::$regex_replacements[$class])) {
-			$messages = preg_replace(
-				self::$regex_replacements[$class]['search'],
-				self::$regex_replacements[$class]['replace'],
-				$messages	
-			);
+			foreach ($messages as $key => $message) {
+				if (is_array($message)) {
+					continue;
+				}
+				$messages[$key] = preg_replace(
+					self::$regex_replacements[$class]['search'],
+					self::$regex_replacements[$class]['replace'],
+					$message	
+				);
+			}
 		}
 		
 		return array_filter($messages, array('fORMValidation', 'isNonBlankString'));
@@ -1405,8 +1427,8 @@ class fORMValidation
 		// Handle the alternate form allowed with fValidation::setMessageOrder()
 		$args = func_get_args();
 		array_shift($args);
-		if (sizeof($args) == 1 && is_array($args[0])) {
-			$matches = $args[0];
+		if (count($args) != 1) {
+			$matches = $args;
 		}
 		
 		uasort($matches, array('self', 'sortMessageMatches'));
@@ -1479,16 +1501,16 @@ class fORMValidation
 			}
 		}
 		
-		$message_array = self::checkPrimaryKeys($object, $values, $old_values);
+		$message_array = self::checkPrimaryKeys($schema, $object, $values, $old_values);
 		if ($message_array) { $validation_messages[key($message_array)] = current($message_array); }
 		
 		$column_info = $schema->getColumnInfo($table);
 		foreach ($column_info as $column => $info) {
-			$message = self::checkAgainstSchema($object, $column, $values, $old_values);
+			$message = self::checkAgainstSchema($schema, $object, $column, $values, $old_values);
 			if ($message) { $validation_messages[$column] = $message; }
 		}
 		
-		$messages = self::checkUniqueConstraints($object, $values, $old_values);
+		$messages = self::checkUniqueConstraints($schema, $object, $values, $old_values);
 		if ($messages) { $validation_messages = array_merge($validation_messages, $messages); }
 		
 		foreach (self::$valid_values_rules[$class] as $column => $valid_values) {
@@ -1502,7 +1524,7 @@ class fORMValidation
 		}
 		
 		foreach (self::$conditional_rules[$class] as $rule) {
-			$messages = self::checkConditionalRule($class, $values, $rule['main_columns'], $rule['conditional_values'], $rule['conditional_columns']);
+			$messages = self::checkConditionalRule($schema, $class, $values, $rule['main_columns'], $rule['conditional_values'], $rule['conditional_columns']);
 			if ($messages) { $validation_messages = array_merge($validation_messages, $messages); }
 		}
 		
@@ -1555,7 +1577,7 @@ class fORMValidation
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>, others
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>, others
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

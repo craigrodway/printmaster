@@ -8,7 +8,7 @@
  * Please also note that using this class in a PUT or DELETE request will
  * cause the php://input stream to be consumed, and thus no longer available.
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond, others
+ * @copyright  Copyright (c) 2007-2011 Will Bond, others
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @author     Alex Leeds [al] <alex@kingleeds.com>
  * @license    http://flourishlib.com/license
@@ -16,7 +16,13 @@
  * @package    Flourish
  * @link       http://flourishlib.com/fRequest
  * 
- * @version    1.0.0b13
+ * @version    1.0.0b19
+ * @changes    1.0.0b19  Added the `$use_default_for_blank` parameter to ::get() [wb, 2011-06-03]
+ * @changes    1.0.0b18  Backwards Compatibility Break - ::getBestAcceptType() and ::getBestAcceptLanguage() now return either `NULL`, `FALSE` or a string instead of `NULL` or a string, both methods are more robust in handling edge cases [wb, 2011-02-06]
+ * @changes    1.0.0b17  Fixed support for 3+ dimensional input arrays, added a fixed for the PHP DoS float bug #53632, added support for type-casted arrays in ::get() [wb, 2011-01-09]
+ * @changes    1.0.0b16  Backwards Compatibility Break - changed ::get() to remove binary characters when casting to a `string`, changed `int` and `integer` to cast to a real integer when possible, added new types of `binary` and `integer!` [wb, 2010-11-30]
+ * @changes    1.0.0b15  Added documentation about `[sub-key]` syntax, added `[sub-key]` support to ::check() [wb, 2010-09-12]
+ * @changes    1.0.0b14  Rewrote ::set() to not require recursion for array syntax [wb, 2010-09-12]
  * @changes    1.0.0b13  Fixed ::set() to work with `PUT` requests [wb, 2010-06-30]
  * @changes    1.0.0b12  Fixed a bug with ::getBestAcceptLanguage() returning the second-best language [wb, 2010-05-27]
  * @changes    1.0.0b11  Added ::isAjax() [al, 2010-03-15]
@@ -94,23 +100,173 @@ class fRequest
 	
 	
 	/**
+	 * Recursively handles casting values
+	 * 
+	 * @param string|array $value    The value to be casted 
+	 * @param string       $cast_to  The data type to cast to
+	 * @param integer      $level    The nesting level of the call
+	 * @return mixed  The casted `$value`
+	 */
+	static private function cast($value, $cast_to, $level=0)
+	{
+		$level++;
+		
+		$strict_array = substr($cast_to, -2) == '[]';
+		$array_type   = $cast_to == 'array' || $strict_array;
+		
+		if ($level == 1 && $array_type) {
+			if (is_string($value) && strpos($value, ',') !== FALSE) {
+				$value = explode(',', $value);
+			} elseif ($value === NULL || $value === '') {
+				$value = array();	
+			} else {
+				settype($value, 'array');
+			}
+		}
+		
+		// Iterate through array values and cast them individually
+		if (is_array($value) && ($cast_to == 'array' || $cast_to === NULL || ($strict_array && $level == 1))) {
+			if ($value === array()) {
+				return $value;
+			}
+			foreach ($value as $key => $sub_value) {
+				$value[$key] = self::cast($sub_value, $cast_to, $level);
+			}
+			return $value;
+		}
+		
+		if ($array_type) {
+			$cast_to = preg_replace('#\[\]$#D', '', $cast_to);
+		}
+		
+		if ($cast_to == 'array' && $level > 1) {
+			$cast_to = 'string';
+		}
+		
+		if (get_magic_quotes_gpc() && (self::isPost() || self::isGet())) {
+			$value = self::stripSlashes($value);
+		}
+		
+		// This normalizes an empty element to NULL
+		if ($cast_to === NULL && $value === '') {
+			$value = NULL;
+			
+		} elseif ($cast_to == 'date') {
+			try {
+				$value = new fDate($value);
+			} catch (fValidationException $e) {
+				$value = new fDate();	
+			}
+			
+		} elseif ($cast_to == 'time') {
+			try {
+				$value = new fTime($value);
+			} catch (fValidationException $e) {
+				$value = new fTime();	
+			}
+			
+		} elseif ($cast_to == 'timestamp') {
+			try {
+				$value = new fTimestamp($value);
+			} catch (fValidationException $e) {
+				$value = new fTimestamp();	
+			}
+			
+		} elseif ($cast_to == 'bool' || $cast_to == 'boolean') {
+			if (strtolower($value) == 'f' || strtolower($value) == 'false' || strtolower($value) == 'no' || !$value) {
+				$value = FALSE;
+			} else {
+				$value = TRUE;
+			}
+			
+		} elseif (($cast_to == 'int' || $cast_to == 'integer') && is_string($value) && preg_match('#^-?\d+$#D', $value)) {
+			// Only explicitly cast integers than can be represented by a real
+			// PHP integer to prevent truncation due to 32 bit integer limits
+			if (strval(intval($value)) == $value) {
+				$value = (int) $value;
+			}
+			
+		// This patches PHP bug #53632 for vulnerable versions of PHP - http://bugs.php.net/bug.php?id=53632
+		} elseif ($cast_to == 'float' && $value === "2.2250738585072011e-308") {
+			static $vulnerable_to_53632 = NULL;
+			
+			if ($vulnerable_to_53632 === NULL) {
+				$running_version = preg_replace(
+					'#^(\d+\.\d+\.\d+).*$#D',
+					'\1',
+					PHP_VERSION
+				);
+				$vulnerable_to_53632 = version_compare($running_version, '5.2.17', '<') || (version_compare($running_version, '5.3.5', '<') && version_compare($running_version, '5.3.0', '>='));
+			}
+			
+			if ($vulnerable_to_53632) {
+				$value = "2.2250738585072012e-308";
+			}
+			
+			settype($value, 'float');
+		
+		} elseif ($cast_to != 'binary' && $cast_to !== NULL) {
+			$cast_to = str_replace('integer!', 'integer', $cast_to);
+			settype($value, $cast_to);
+		}
+		
+		// Clean values coming in to ensure we don't have invalid UTF-8
+		if (($cast_to === NULL || $cast_to == 'string' || $cast_to == 'array') && $value !== NULL) {
+			$value = self::stripLowOrderBytes($value);
+			$value = fUTF8::clean($value);
+		}
+		
+		return $value;
+	}
+	
+	
+	/**
 	 * Indicated if the parameter specified is set in the `$_GET` or `$_POST` superglobals or in the post data of a `PUT` or `DELETE` request
 	 * 
-	 * @param  string $key  The key to check
+	 * @param  string $key  The key to check - array elements can be checked via `[sub-key]` syntax
 	 * @return boolean  If the parameter is set
 	 */
 	static public function check($key)
 	{
 		self::initPutDelete();
 		
-		return isset($_GET[$key]) || isset($_POST[$key]) || isset(self::$put_delete[$key]);
+		$array_dereference = NULL;
+		if (strpos($key, '[')) {
+			$bracket_pos       = strpos($key, '[');
+			$array_dereference = substr($key, $bracket_pos);
+			$key               = substr($key, 0, $bracket_pos);
+		}
+		
+		if (!isset($_GET[$key]) && !isset($_POST[$key]) && !isset(self::$put_delete[$key])) {
+			return FALSE;
+		}
+		
+		$values = array($_GET, $_POST, self::$put_delete);
+		
+		if ($array_dereference) {
+			preg_match_all('#(?<=\[)[^\[\]]+(?=\])#', $array_dereference, $array_keys, PREG_SET_ORDER);
+			$array_keys = array_map('current', $array_keys);
+			array_unshift($array_keys, $key);
+			foreach (array_slice($array_keys, 0, -1) as $array_key) {
+				foreach ($values as &$value) {
+					if (!is_array($value) || !isset($value[$array_key])) {
+						$value = NULL;
+					} else {
+						$value = $value[$array_key];
+					}
+				}
+			}
+			$key = end($array_keys);
+		}
+		
+		return isset($values[0][$key]) || isset($values[1][$key]) || isset($values[2][$key]);
 	}
 	
 	
 	/**
 	 * Gets a value from ::get() and passes it through fHTML::encode()
 	 * 
-	 * @param  string $key            The key to get the value of
+	 * @param  string $key            The key to get the value of - array elements can be accessed via `[sub-key]` syntax
 	 * @param  string $cast_to        Cast the value to this data type
 	 * @param  mixed  $default_value  If the parameter is not set in the `DELETE`/`PUT` post data, `$_POST` or `$_GET`, use this value instead
 	 * @return string  The encoded value
@@ -213,7 +369,8 @@ class fRequest
 	 * become `NULL`.
 	 * 
 	 * Valid `$cast_to` types include:
-	 *  - `'string'`,
+	 *  - `'string'`
+	 *  - `'binary'`
 	 *  - `'int'`
 	 *  - `'integer'`
 	 *  - `'bool'`
@@ -223,19 +380,38 @@ class fRequest
 	 *  - `'time'`
 	 *  - `'timestamp'`
 	 * 
-	 * It is also possible to append a `?` to a data type to return `NULL`
+	 * It is possible to append a `?` to a data type to return `NULL`
 	 * whenever the `$key` was not specified in the request, or if the value
 	 * was a blank string.
-	 *  
-	 * All text values are interpreted as UTF-8 string and appropriately
-	 * cleaned.
 	 * 
-	 * @param  string $key            The key to get the value of
-	 * @param  string $cast_to        Cast the value to this data type - see method description for details
-	 * @param  mixed  $default_value  If the parameter is not set in the `DELETE`/`PUT` post data, `$_POST` or `$_GET`, use this value instead. This value will get cast if a `$cast_to` is specified.
+	 * The `array` and unspecified `$cast_to` types allow for multi-dimensional
+	 * arrays of string data. It is possible to cast an input value as a
+	 * single-dimensional array of a specific type by appending `[]` to the
+	 * `$cast_to`.
+	 * 
+	 * All `string`, `array` or unspecified `$cast_to` will result in the value(s)
+	 * being interpreted as UTF-8 string and appropriately cleaned of invalid
+	 * byte sequences. Also, all low-byte, non-printable characters will be
+	 * stripped from the value. This includes all bytes less than the value of
+	 * 32 (Space) other than Tab (`\t`), Newline (`\n`) and Cariage Return
+	 * (`\r`).
+	 * 
+	 * To preserve low-byte, non-printable characters, or get the raw value
+	 * without cleaning invalid UTF-8 byte sequences, plase use the value of
+	 * `binary` for the `$cast_to` parameter.
+	 * 
+	 * Any integers that are beyond the range of 32bit storage will be returned
+	 * as a string. The returned value can be forced to always be a real
+	 * integer, which may cause truncation of the value, by passing `integer!`
+	 * as the `$cast_to`.
+	 * 
+	 * @param  string  $key                    The key to get the value of - array elements can be accessed via `[sub-key]` syntax
+	 * @param  string  $cast_to                Cast the value to this data type - see method description for details
+	 * @param  mixed   $default_value          If the parameter is not set in the `DELETE`/`PUT` post data, `$_POST` or `$_GET`, use this value instead. This value will get cast if a `$cast_to` is specified.
+	 * @param  boolean $use_default_for_blank  If the request value is a blank string and `$default_value` is specified, this flag will cause the `$default_value` to be returned
 	 * @return mixed  The value
 	 */
-	static public function get($key, $cast_to=NULL, $default_value=NULL)
+	static public function get($key, $cast_to=NULL, $default_value=NULL, $use_default_for_blank=FALSE)
 	{
 		self::initPutDelete();
 		
@@ -255,6 +431,10 @@ class fRequest
 		} elseif (isset($_GET[$key])) {
 			$value = $_GET[$key];
 		}
+
+		if ($value === '' && $use_default_for_blank && $default_value !== NULL) {
+			$value = $default_value;
+		}
 		
 		if ($array_dereference) {
 			preg_match_all('#(?<=\[)[^\[\]]+(?=\])#', $array_dereference, $array_keys, PREG_SET_ORDER);
@@ -271,124 +451,89 @@ class fRequest
 		// This allows for data_type? casts to allow NULL through
 		if ($cast_to !== NULL && substr($cast_to, -1) == '?') {
 			if ($value === NULL || $value === '') {
-				return $value;
+				return NULL;
 			}	
 			$cast_to = substr($cast_to, 0, -1);
 		}
 		
-		if (get_magic_quotes_gpc() && (self::isPost() || self::isGet())) {
-			if (is_array($value)) {
-				$value = array_map('stripslashes', $value);
-			} else {
-				$value = stripslashes($value);
-			}
-		}
-		
-		// This normalizes an empty element to NULL
-		if ($cast_to === NULL && $value === '') {
-			$value = NULL;
-			
-		} elseif ($cast_to == 'date') {
-			try {
-				$value = new fDate($value);
-			} catch (fValidationException $e) {
-				$value = new fDate();	
-			}
-			
-		} elseif ($cast_to == 'time') {
-			try {
-				$value = new fTime($value);
-			} catch (fValidationException $e) {
-				$value = new fTime();	
-			}
-			
-		} elseif ($cast_to == 'timestamp') {
-			try {
-				$value = new fTimestamp($value);
-			} catch (fValidationException $e) {
-				$value = new fTimestamp();	
-			}
-			
-		} elseif ($cast_to == 'array' && is_string($value) && strpos($value, ',') !== FALSE) {
-			$value = explode(',', $value);
-		
-		} elseif ($cast_to == 'array' && ($value === NULL || $value === '')) {
-			$value = array();
-				
-		} elseif ($cast_to == 'bool' || $cast_to == 'boolean') {
-			if (strtolower($value) == 'f' || strtolower($value) == 'false' || strtolower($value) == 'no' || !$value) {
-				$value = FALSE;
-			} else {
-				$value = TRUE;
-			}
-			
-		} elseif (($cast_to == 'int' || $cast_to == 'integer') && preg_match('#^-?\d+$#D', $value)) {
-			// If the cast is an integer and the value is digits, don't cast to prevent
-			// truncation due to 32 bit integer limits
-			
-		} elseif ($cast_to) {
-			settype($value, $cast_to);
-		}
-		
-		// Clean values coming in to ensure we don't have invalid UTF-8
-		if (($cast_to === NULL || $cast_to == 'string' || $cast_to == 'array') && $value !== NULL) {
-			$value = fUTF8::clean($value);
-		}
-		
-		return $value;
+		return self::cast($value, $cast_to);
 	}
 	
 	
 	/**
 	 * Returns the HTTP `Accept-Language`s sorted by their `q` values (from high to low)
 	 * 
-	 * @return array  An associative array of `{language} => {q value}` sorted (in a stable-fashion) from highest to lowest `q`
+	 * @return array  An associative array of `{language} => {q value}` sorted (in a stable-fashion) from highest to lowest `q` - if no header was sent, an empty array will be returned
 	 */
 	static public function getAcceptLanguages()
 	{
-		return self::processAcceptHeader($_SERVER['HTTP_ACCEPT_LANGUAGE']);
+		return self::processAcceptHeader('HTTP_ACCEPT_LANGUAGE');
 	}
 	
 	
 	/**
 	 * Returns the HTTP `Accept` types sorted by their `q` values (from high to low)
 	 * 
-	 * @return array  An associative array of `{type} => {q value}` sorted (in a stable-fashion) from highest to lowest `q`
+	 * @return array  An associative array of `{type} => {q value}` sorted (in a stable-fashion) from highest to lowest `q` - if no header was sent, an empty array will be returned
 	 */
 	static public function getAcceptTypes()
 	{
-		return self::processAcceptHeader($_SERVER['HTTP_ACCEPT']);
+		return self::processAcceptHeader('HTTP_ACCEPT');
 	}
 	
 	
 	/**
 	 * Returns the best HTTP `Accept-Language` (based on `q` value) - can be filtered to only allow certain languages
 	 * 
-	 * @param  array $filter  An array of languages that are valid to return
-	 * @return string  The best language listed in the `Accept-Language` header
+	 * Special conditions affecting the return value:
+	 *  - If no `$filter` is provided and the client does not send the `Accept-Language` header, `NULL` will be returned
+	 *  - If no `$filter` is provided and the client specifies `*` with the highest `q`, `NULL` will be returned
+	 *  - If `$filter` contains one or more values, but the `Accept-Language` header does not match any, `FALSE` will be returned
+	 *  - If `$filter` contains one or more values, but the client does not send the `Accept-Language` header, the first entry from `$filter` will be returned
+	 *  - If `$filter` contains two or more values, and two of the values have the same `q` value, the one listed first in `$filter` will be returned
+	 *  
+	 * @param  array  $filter     An array of languages that are valid to return - these should be in the form `{language}-{territory}`, e.g. `en-us`
+	 * @param  string |$language  A language that is valid to return
+	 * @param  string |...
+	 * @return string|NULL|FALSE  The best language listed in the `Accept-Language` header - see method description for edge cases
 	 */
 	static public function getBestAcceptLanguage($filter=array())
 	{
-		return self::pickBestAcceptItem($_SERVER['HTTP_ACCEPT_LANGUAGE'], $filter);
+		if (!is_array($filter)) {
+			$filter = func_get_args();
+		}
+		return self::pickBestAcceptItem('HTTP_ACCEPT_LANGUAGE', $filter);
 	}
 	
 	
 	/**
 	 * Returns the best HTTP `Accept` type (based on `q` value) - can be filtered to only allow certain types
 	 * 
-	 * @param  array $filter  An array of types that are valid to return
-	 * @return string  The best type listed in the `Accept` header
+	 * Special conditions affecting the return value:
+	 *  - If no `$filter` is provided and the client does not send the `Accept` header, `NULL` will be returned
+	 *  - If no `$filter` is provided and the client specifies `{@*}*` with the highest `q`, `NULL` will be returned
+	 *  - If `$filter` contains one or more values, but the `Accept` header does not match any, `FALSE` will be returned
+	 *  - If `$filter` contains one or more values, but the client does not send the `Accept` header, the first entry from `$filter` will be returned
+	 *  - If `$filter` contains two or more values, and two of the values have the same `q` value, the one listed first in `$filter` will be returned
+	 * 
+	 * @param  array  $filter  An array of types that are valid to return
+	 * @param  string |$type   A type that is valid to return
+	 * @param  string |...
+	 * @return string|NULL|FALSE  The best type listed in the `Accept` header - see method description for edge cases
 	 */
 	static public function getBestAcceptType($filter=array())
 	{
-		return self::pickBestAcceptItem($_SERVER['HTTP_ACCEPT'], $filter);
+		if (!is_array($filter)) {
+			$filter = func_get_args();
+		}
+		return self::pickBestAcceptItem('HTTP_ACCEPT', $filter);
 	}
 	
 	
 	/**
 	 * Gets a value from the `DELETE`/`PUT` post data, `$_POST` or `$_GET` superglobals (in that order), restricting to a specific set of values
 	 * 
-	 * @param  string $key           The key to get the value of
+	 * @param  string $key           The key to get the value of - array elements can be accessed via `[sub-key]` syntax
 	 * @param  array  $valid_values  The array of values that are permissible, if one is not selected, picks first
 	 * @return mixed  The value
 	 */
@@ -513,46 +658,58 @@ class fRequest
 	/**
 	 * Returns the best HTTP `Accept-*` header item match (based on `q` value), optionally filtered by an array of options
 	 * 
-	 * @param  string $header   The `Accept-*` header to pick the best item from
-	 * @param  array  $options  A list of supported options to pick the best from
-	 * @return string  The best accept item, `NULL` if an options array is specified and none are valid
+	 * @param  string $header_name  The key in `$_SERVER` that contains the `Accept-*` header to pick the best item from
+	 * @param  array  $options      A list of supported options to pick the best from
+	 * @return string  The best accept item, `FALSE` if an options array is specified and none are valid, `NULL` if anything is accepted
 	 */
-	static private function pickBestAcceptItem($header, $options)
+	static private function pickBestAcceptItem($header_name, $options)
 	{
 		settype($options, 'array');
 		
-		$items = self::processAcceptHeader($header);
+		if (!isset($_SERVER[$header_name]) || !strlen($_SERVER[$header_name])) {
+			if (empty($options)) {
+				return NULL;
+			}
+			return reset($options);
+		}
+		
+		$items = self::processAcceptHeader($header_name);
 		reset($items);
 		
 		if (!$options) {
-			return key($items);		
+			$result = key($items);
+			if ($result == '*/*' || $result == '*') {
+				$result = NULL;
+			}
+			return $result;
 		}
 		
 		$top_q    = 0;
-		$top_item = NULL;
+		$top_item = FALSE;
 		
-		foreach ($items as $item => $q) {
-			if ($q < $top_q) {
-				continue;	
-			}
-			
-			// Type matches have /s
-			if (strpos($item, '/') !== FALSE) {
-				$regex = '#^' . str_replace('*', '.*', $item) . '$#iD';
-			
-			// Language matches that don't have a - are a wildcard
-			} elseif (strpos($item, '-') === FALSE) {
-				$regex = '#^' . str_replace('*', '.*', $item) . '(-.*)?$#iD';	
+		foreach ($options as $option) {
+			foreach ($items as $item => $q) {
+				if ($q < $top_q) {
+					continue;	
+				}
 				
-			// Non-wildcard languages are straight-up matches
-			} else {
-				$regex = '#^' . str_replace('*', '.*', $item) . '$#iD';	
-			}
-			foreach ($options as $option) {
+				// Type matches have /s
+				if (strpos($item, '/') !== FALSE) {
+					$regex = '#^' . str_replace('*', '.*', $item) . '$#iD';
+				
+				// Language matches that don't have a - are a wildcard
+				} elseif (strpos($item, '-') === FALSE) {
+					$regex = '#^' . str_replace('*', '.*', $item) . '(-.*)?$#iD';	
+					
+				// Non-wildcard languages are straight-up matches
+				} else {
+					$regex = '#^' . str_replace('*', '.*', $item) . '$#iD';	
+				}
+			
 				if (preg_match($regex, $option) && $top_q < $q) {
 					$top_q = $q;
 					$top_item = $option;
-					continue 2;
+					continue;
 				}	
 			}
 		}
@@ -564,7 +721,7 @@ class fRequest
 	/**
 	 * Gets a value from ::get() and passes it through fHTML::prepare()
 	 * 
-	 * @param  string $key            The key to get the value of
+	 * @param  string $key            The key to get the value of - array elements can be accessed via `[sub-key]` syntax
 	 * @param  string $cast_to        Cast the value to this data type
 	 * @param  mixed  $default_value  If the parameter is not set in the `DELETE`/`PUT` post data, `$_POST` or `$_GET`, use this value instead
 	 * @return string  The prepared value
@@ -578,11 +735,16 @@ class fRequest
 	/**
 	 * Returns an array of values from one of the HTTP `Accept-*` headers
 	 * 
-	 * @return array  An associative array of `{value} => {quality}` sorted (in a stable-fashion) from highest to lowest `q`
+	 * @param  string $header_name  The key in `$_SERVER` to get the header value from
+	 * @return array  An associative array of `{value} => {quality}` sorted (in a stable-fashion) from highest to lowest `q` - an empty array is returned if the header is empty
 	 */
-	static private function processAcceptHeader($header)
+	static private function processAcceptHeader($header_name)
 	{
-		$types  = explode(',', $header);
+		if (!isset($_SERVER[$header_name]) || !strlen($_SERVER[$header_name])) {
+			return array();
+		}
+		
+		$types  = explode(',', $_SERVER[$header_name]);
 		$output = array();
 		
 		// We use this suffix to force stable sorting with the built-in sort function
@@ -612,36 +774,6 @@ class fRequest
 	
 	
 	/**
-	 * Recursively sets an array request value
-	 * 
-	 * @param mixed $existing_value  The existing value that the value will be added to, or overwrite
-	 * @param array $array_keys      An array of the keys to use for the value
-	 * @param mixed $value           The value to set the key to
-	 * @return array  The modified `$existing_value` with the new value added
-	 */
-	static private function recursiveSet($existing_value, $array_keys, $value)
-	{
-		if (!$array_keys) {
-			return $value;
-		}
-		
-		$key = array_shift($array_keys);
-		
-		if (!is_array($existing_value)) {
-			$existing_value = array();
-		}
-		
-		$existing_value[$key] = self::recursiveSet(
-			isset($existing_value[$key]) ? $existing_value[$key] : array(),
-			$array_keys,
-			$value
-		);
-		
-		return $existing_value;
-	}
-	
-	
-	/**
 	 * Resets the configuration and data of the class
 	 * 
 	 * @internal
@@ -663,38 +795,76 @@ class fRequest
 	/**
 	 * Sets a value into the appropriate `$_GET` or `$_POST` superglobal, or the local `PUT`/`DELETE` post data based on what HTTP method was used for the request
 	 * 
-	 * @param  string $key    The key to set the value to
+	 * @param  string $key    The key to set the value to - array elements can be modified via `[sub-key]` syntax
 	 * @param  mixed  $value  The value to set
 	 * @return void
 	 */
 	static public function set($key, $value)
 	{		
-		$array_dereference = NULL;
-		if (strpos($key, '[')) {
-			$bracket_pos       = strpos($key, '[');
+		if (self::isPost()) {
+			$tip =& $_POST;
+		} elseif (self::isGet()) {
+			$tip =& $_GET;
+		} elseif (self::isDelete() || self::isPut()) {
+			self::initPutDelete();
+			$tip =& self::$put_delete;
+		}
+		
+		if ($bracket_pos = strpos($key, '[')) {
 			$array_dereference = substr($key, $bracket_pos);
 			$key               = substr($key, 0, $bracket_pos);
 			
 			preg_match_all('#(?<=\[)[^\[\]]+(?=\])#', $array_dereference, $array_keys, PREG_SET_ORDER);
 			$array_keys = array_map('current', $array_keys);
-			$value = self::recursiveSet(self::get($key), $array_keys, $value);
+			array_unshift($array_keys, $key);
+			
+			foreach (array_slice($array_keys, 0, -1) as $array_key) {
+				if (!isset($tip[$array_key]) || !is_array($tip[$array_key])) {
+					$tip[$array_key] = array();
+				}
+				$tip =& $tip[$array_key];
+			}
+			$tip[end($array_keys)] = $value;
+			
+		} else {
+			$tip[$key] = $value;
 		}
-		
-		if (self::isPost()) {
-			$_POST[$key] = $value;	
-			return;
+	}
+	
+	
+	/**
+	 * Removes low-order bytes from a value
+	 * 
+	 * @param string|array $value  The value to strip
+	 * @return string|array  The `$value` with low-order bytes stripped
+	 */
+	static private function stripLowOrderBytes($value)
+	{
+		if (is_array($value)) {
+			foreach ($value as $key => $sub_value) {
+				$value[$key] = self::stripLowOrderBytes($sub_value);
+			}
+			return $value;
 		}
-		
-		if (self::isGet()) {
-			$_GET[$key] = $value;	
-			return;
+		return preg_replace('#[\x00-\x08\x0B\x0C\x0E-\x1F]#', '', $value);	
+	}
+	
+	
+	/**
+	 * Removes slashes from a value
+	 * 
+	 * @param string|array $value  The value to strip
+	 * @return string|array  The `$value` with slashes stripped
+	 */
+	static private function stripSlashes($value)
+	{
+		if (is_array($value)) {
+			foreach ($value as $key => $sub_value) {
+				$value[$key] = self::stripSlashes($sub_value);
+			}
+			return $value;
 		}
-		
-		if (self::isDelete() || self::isPut()) {
-			self::initPutDelete();
-			self::$put_delete[$key] = $value;	
-			return;
-		}
+		return stripslashes($value);
 	}
 	
 	
@@ -765,7 +935,7 @@ class fRequest
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>, others
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>, others
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

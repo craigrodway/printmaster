@@ -7,7 +7,7 @@
  * method calls for getting, setting and other operations on columns. It also
  * dynamically handles retrieving and storing related records.
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond, others
+ * @copyright  Copyright (c) 2007-2011 Will Bond, others
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @author     Will Bond, iMarc LLC [wb-imarc] <will@imarc.net>
  * @license    http://flourishlib.com/license
@@ -15,7 +15,22 @@
  * @package    Flourish
  * @link       http://flourishlib.com/fActiveRecord
  * 
- * @version    1.0.0b66
+ * @version    1.0.0b81
+ * @changes    1.0.0b81  Fixed a bug with updating a record that contains only an auto-incrementing primary key [wb, 2011-09-06]
+ * @changes    1.0.0b80  Added support to ::checkCondition() for the `^~` and `$~` operators [wb, 2011-06-20]
+ * @changes    1.0.0b79  Fixed some bugs in handling relationships between PHP 5.3 namespaced classes [wb, 2011-05-26]
+ * @changes    1.0.0b78  Backwards Compatibility Break - ::reflect() now returns an associative array instead of a string [wb, 2011-05-10]
+ * @changes    1.0.0b77  Fixed ::inspect() to not throw an fProgrammerException when a valid element has a `NULL` value [wb, 2011-05-10]
+ * @changes    1.0.0b76  Added ::clearIdentityMap() [wb, 2011-05-09]
+ * @changes    1.0.0b75  Fixed a bug where child records of a record with a non-auto-incrementing primary key would not be saved properly for a new record [wb, 2010-12-06]
+ * @changes    1.0.0b74  Updated ::populate() to use the `binary` type for fRequest::get() [wb, 2010-11-30]
+ * @changes    1.0.0b73  Backwards Compatibility Break - changed column set methods to treat strings of all whitespace the same as empty string and convert them to `NULL` [wb, 2010-11-29]
+ * @changes    1.0.0b72  Added the new `comment` element to the reflection signature for `inspect` methods [wb, 2010-11-28]
+ * @changes    1.0.0b71  Updated class to use fORM::getRelatedClass() [wb, 2010-11-24]
+ * @changes    1.0.0b70  Added support for PHP 5.3 namespaced fActiveRecord classes [wb, 2010-11-11]
+ * @changes    1.0.0b69  Backwards Compatibility Break - changed ::validate() to return a nested array of validation messages when there are validation errors on child records [wb-imarc+wb, 2010-10-03]
+ * @changes    1.0.0b68  Added hooks to ::replicate() [wb, 2010-09-07]
+ * @changes    1.0.0b67  Updated code to work with the new fORM API [wb, 2010-08-06]
  * @changes    1.0.0b66  Fixed a bug with ::store() and non-primary key auto-incrementing columns [wb, 2010-07-05]
  * @changes    1.0.0b65  Fixed bugs with ::inspect() making some `min_value` and `max_value` elements available for non-numeric types, fixed ::reflect() to list the `min_value` and `max_value` elements [wb, 2010-06-08]
  * @changes    1.0.0b64  BackwardsCompatibilityBreak - changed ::validate()'s returned messages array to have field name keys - added the option to ::validate() to remove field names from messages [wb, 2010-05-26]
@@ -265,20 +280,27 @@ abstract class fActiveRecord
 		}
 		if (!$was_array) { $result = $result[0]; }
 		
-		$match_all   = $operator == '&~';
-		$negate_like = $operator == '!~';
-		
+		if ($operator == '~' && !is_array($value) && is_array($result)) {
+			$value = fORMDatabase::parseSearchTerms($value, TRUE);
+		}
+
+		if (in_array($operator, array('~', '&~', '!~', '^~', '$~'))) {
+			settype($value, 'array');
+			settype($result, 'array');
+		}
+
 		switch ($operator) {
 			case '&~':
-			case '!~':
+				foreach ($value as $_value) {
+					if (fUTF8::ipos($result[0], $_value) === FALSE) {
+						return FALSE;
+					}
+				}
+				break;
+
 			case '~':
-				if (!$match_all && !$negate_like && !is_array($value) && is_array($result)) {
-					$value = fORMDatabase::parseSearchTerms($value, TRUE);
-				}	
-					
-				settype($value, 'array');
-				settype($result, 'array');
 				
+				// Handles fuzzy search on multiple method calls
 				if (count($result) > 1) {
 					foreach ($value as $_value) {
 						$found = FALSE;
@@ -291,19 +313,33 @@ abstract class fActiveRecord
 							return FALSE;
 						}	
 					}
-				} else {
-					$found = FALSE;
-					foreach ($value as $_value) {
-						if (fUTF8::ipos($result[0], $_value) !== FALSE) {
-							$found = TRUE;
-						} elseif ($match_all) {
-							return FALSE;
-						}
+					break;
+				}
+
+				// No break exists since a ~ on a single method call acts
+				// similar to the other LIKE operators
+
+			case '!~':
+			case '^~':
+			case '$~':
+				if ($operator == '$~') {
+					$result_len = fUTF8::len($result[0]);
+				}
+
+				foreach ($value as $_value) {
+					$pos = fUTF8::ipos($result[0], $_value);
+					if ($operator == '^~' && $pos === 0) {
+						return TRUE;
+					} elseif ($operator == '$~' && $pos === $result_len - fUTF8::len($_value)) {
+						return TRUE;
+					} elseif ($pos !== FALSE) {
+						return $operator != '!~';
 					}
-					if ((!$negate_like && !$found) || ($negate_like && $found)) {
-						return FALSE;
-					}
-				}    
+				}
+
+				if ($operator != '!~') {
+					return FALSE;
+				}
 				break;
 			
 			case '=':
@@ -377,7 +413,7 @@ abstract class fActiveRecord
 		foreach ($conditions as $method => $value) {
 			
 			// Split the operator off of the end of the method name
-			if (in_array(substr($method, -2), array('<=', '>=', '!=', '<>', '!~', '&~', '><'))) {
+			if (in_array(substr($method, -2), array('<=', '>=', '!=', '<>', '!~', '&~', '^~', '$~', '><'))) {
 				$operator = strtr(
 					substr($method, -2),
 					array(
@@ -398,7 +434,7 @@ abstract class fActiveRecord
 				$operators = array();
 				
 				foreach ($methods as &$_method) {
-					if (in_array(substr($_method, -2), array('<=', '>=', '!=', '<>', '!~', '&~', '><'))) {
+					if (in_array(substr($_method, -2), array('<=', '>=', '!=', '<>', '!~', '&~', '^~', '$~', '><'))) {
 						$operators[] = strtr(
 							substr($_method, -2),
 							array(
@@ -518,6 +554,17 @@ abstract class fActiveRecord
 		
 		return TRUE;
 	}
+
+
+	/**
+	 * Clears the identity map
+	 * 
+	 * @return void
+	 */
+	static public function clearIdentityMap()
+	{
+		self::$identity_map = array();
+	}
 	
 	
 	/**
@@ -560,19 +607,13 @@ abstract class fActiveRecord
 		
 		// one-to-many relationships need to use plural forms
 		$singular_form = fGrammar::singularize($subject, TRUE);
-		if ($singular_form && fORM::isClassMappedToTable(fGrammar::camelize($singular_form, TRUE))) {
-			$subject = fGrammar::camelize($singular_form, TRUE);
+		if ($singular_form && fORM::isClassMappedToTable($singular_form)) {
+			$subject = $singular_form;
 			$plural  = TRUE;
 			
-		} elseif (fORM::isClassMappedToTable(fGrammar::camelize($subject, TRUE))) {
-			$subject = fGrammar::camelize($subject, TRUE);
-			
-		} else {
-			if (in_array($subject, $schema->getTables())) {
-				$subject = fGrammar::singularize($subject);
-				$plural  = TRUE;
-			}
-			$subject = fGrammar::camelize($subject, TRUE);
+		} elseif (!fORM::isClassMappedToTable($subject) && in_array(fGrammar::underscorize($subject), $schema->getTables())) {
+			$subject = fGrammar::singularize($subject);
+			$plural  = TRUE;
 		}
 		
 		$related_table = fORM::tablize($subject);
@@ -841,6 +882,14 @@ abstract class fActiveRecord
 		
 		if (!isset(self::$method_name_cache[$method_name])) {
 			list ($action, $subject) = fORM::parseMethod($method_name);
+			if (in_array($action, array('get', 'encode', 'prepare', 'inspect', 'set'))) {
+				$subject = fGrammar::underscorize($subject);
+			} else {
+				if (in_array($action, array('build', 'count', 'inject', 'link', 'list', 'tally'))) {
+					$subject = fGrammar::singularize($subject);
+				}
+				$subject = fORM::getRelatedClass($class, $subject);
+			}
 			self::$method_name_cache[$method_name] = array(
 				'action'  => $action,
 				'subject' => $subject
@@ -905,26 +954,18 @@ abstract class fActiveRecord
 				return $this;
 			
 			case 'build':
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
-				
 				if (isset($parameters[0])) {
 					return fORMRelated::buildRecords($class, $this->values, $this->related_records, $subject, $parameters[0]);
 				}
 				return fORMRelated::buildRecords($class, $this->values, $this->related_records, $subject);
 			
 			case 'count':
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
-				
 				if (isset($parameters[0])) {
 					return fORMRelated::countRecords($class, $this->values, $this->related_records, $subject, $parameters[0]);
 				}
 				return fORMRelated::countRecords($class, $this->values, $this->related_records, $subject);
 			
 			case 'create':
-				$subject = fGrammar::camelize($subject, TRUE);
-				
 				if (isset($parameters[0])) {
 					return fORMRelated::createRecord($class, $this->values, $this->related_records, $subject, $parameters[0]);
 				}
@@ -945,18 +986,12 @@ abstract class fActiveRecord
 					);
 				}
 				
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
-				 
 				if (isset($parameters[1])) {
 					return fORMRelated::setRecordSet($class, $this->related_records, $subject, $parameters[0], $parameters[1]);
 				}
 				return fORMRelated::setRecordSet($class, $this->related_records, $subject, $parameters[0]);
 
 			case 'link':
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
-				
 				if (isset($parameters[0])) {
 					fORMRelated::linkRecords($class, $this->related_records, $subject, $parameters[0]);
 				} else {
@@ -965,9 +1000,6 @@ abstract class fActiveRecord
 				return $this;
 			
 			case 'list':
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
-				
 				if (isset($parameters[0])) {
 					return fORMRelated::getPrimaryKeys($class, $this->values, $this->related_records, $subject, $parameters[0]);
 				}
@@ -988,9 +1020,6 @@ abstract class fActiveRecord
 						$method_name
 					);
 				}
-				
-				$subject = fGrammar::singularize($subject);
-				$subject = fGrammar::camelize($subject, TRUE);
 				
 				if (isset($parameters[1])) {
 					return fORMRelated::setCount($class, $this->related_records, $subject, $parameters[0], $parameters[1]);
@@ -1309,7 +1338,7 @@ abstract class fActiveRecord
 		$params      = array($table);
 			
 		foreach ($column_info as $column => $info) {
-			if ($info['auto_increment'] && !fActiveRecord::changed($this->values, $this->old_values, $column)) {
+			if ($info['auto_increment'] && !fActiveRecord::changed($this->values, $this->old_values, $column) && count($column_info) > 1) {
 				continue;
 			}
 			
@@ -1467,6 +1496,7 @@ abstract class fActiveRecord
 				} elseif ($relationship['on_delete'] == 'restrict' || $relationship['on_delete'] == 'no_action') {
 					
 					$related_class_name  = fORM::classize($relationship['related_table']);
+					$related_class_name  = fORM::getRelatedClass($class, $related_class_name);
 					$related_record_name = fORM::getRecordName($related_class_name);
 					
 					if ($type == 'one-to-one') {
@@ -1841,7 +1871,7 @@ abstract class fActiveRecord
 		fORM::callInspectCallbacks(get_class($this), $column, $info);
 		
 		if ($element) {
-			if (!isset($info[$element])) {
+			if (!isset($info[$element]) && !array_key_exists($element, $info)) {
 				throw new fProgrammerException(
 					'The element specified, %1$s, is invalid. Must be one of: %2$s.',
 					$element,
@@ -2035,7 +2065,8 @@ abstract class fActiveRecord
 		foreach ($column_info as $column => $info) {
 			if (fRequest::check($column)) {
 				$method = 'set' . fGrammar::camelize($column, TRUE);
-				$this->$method(fRequest::get($column));
+				$cast_to = ($info['type'] == 'blob') ? 'binary' : NULL;
+				$this->$method(fRequest::get($column, $cast_to));
 			}
 		}
 		
@@ -2171,10 +2202,10 @@ abstract class fActiveRecord
 	
 	
 	/**
-	 * Generates a pre-formatted block of text containing the method signatures for all methods (including dynamic ones)
+	 * Generates the method signatures for all methods (including dynamic ones)
 	 * 
 	 * @param  boolean $include_doc_comments  If the doc block comments for each method should be included
-	 * @return string  A preformatted block of text with the method signatures and optionally the doc comment
+	 * @return array  An associative array of method name => method signature
 	 */
 	public function reflect($include_doc_comments=FALSE)
 	{
@@ -2317,7 +2348,7 @@ abstract class fActiveRecord
 				$signature .= "/**\n";
 				$signature .= " * Returns metadata about " . $column . "\n";
 				$signature .= " * \n";
-				$elements = array('type', 'not_null', 'default');
+				$elements = array('type', 'not_null', 'default', 'comment');
 				if (in_array($column_info['type'], array('varchar', 'char', 'text'))) {
 					$elements[] = 'valid_values';
 					$elements[] = 'max_length';
@@ -2423,7 +2454,7 @@ abstract class fActiveRecord
 		
 		ksort($signatures);
 		
-		return join("\n\n", $signatures);
+		return $signatures;
 	}
 	
 	
@@ -2447,6 +2478,16 @@ abstract class fActiveRecord
 	 */
 	public function replicate($related_class=NULL)
 	{
+		fORM::callHookCallbacks(
+			$this,
+			'pre::replicate()',
+			$this->values,
+			$this->old_values,
+			$this->related_records,
+			$this->cache,
+			fActiveRecord::$replicate_level
+		);
+		
 		fActiveRecord::$replicate_level++;
 		
 		$class  = get_class($this);
@@ -2498,10 +2539,12 @@ abstract class fActiveRecord
 			if (strpos($parameter, '{') !== FALSE) {
 				$brace         = strpos($parameter, '{');
 				$related_class = fGrammar::singularize(substr($parameter, 0, $brace));
+				$related_class = fORM::getRelatedClass($class, $related_class);
 				$related_table = fORM::tablize($related_class);
 				$route         = substr($parameter, $brace+1, -1);
 			} else {
 				$related_class = fGrammar::singularize($parameter);
+				$related_class = fORM::getRelatedClass($class, $related_class);
 				$related_table = fORM::tablize($related_class);
 				$route         = fORMSchema::getRouteName($schema, $table, $related_table);
 			}
@@ -2569,6 +2612,26 @@ abstract class fActiveRecord
 			fActiveRecord::$replicate_map = array();	
 		}
 		
+		fORM::callHookCallbacks(
+			$this,
+			'post::replicate()',
+			$this->values,
+			$this->old_values,
+			$this->related_records,
+			$this->cache,
+			fActiveRecord::$replicate_level
+		);
+		
+		fORM::callHookCallbacks(
+			$clone,
+			'cloned::replicate()',
+			$clone->values,
+			$clone->old_values,
+			$clone->related_records,
+			$clone->cache,
+			fActiveRecord::$replicate_level
+		);
+		
 		return $clone;
 	}
 	
@@ -2589,8 +2652,8 @@ abstract class fActiveRecord
 			);
 		}
 		
-		// We consider an empty string to be equivalent to NULL
-		if ($value === '') {
+		// We consider an empty string or a string of spaces to be equivalent to NULL
+		if ($value === '' || (is_string($value) && trim($value) === '')) {
 			$value = NULL;
 		}
 		
@@ -2713,6 +2776,7 @@ abstract class fActiveRecord
 				
 				$related_table = $relationship['related_table'];
 				$related_class = fORM::classize($related_table);
+				$related_class = fORM::getRelatedClass($class, $related_class);
 				
 				if ($relationship['on_update'] != 'cascade') {
 					continue;
@@ -2733,6 +2797,9 @@ abstract class fActiveRecord
 				$old_value      = fActiveRecord::retrieveOld($this->old_values, $column);
 				$value          = $this->values[$column];
 				
+				if ($old_value === NULL) {
+					continue;
+				}
 				foreach ($record_set as $record) {
 					if (isset($record->old_values[$related_column])) {
 						foreach (array_keys($record->old_values[$related_column]) as $key) {
@@ -2873,8 +2940,6 @@ abstract class fActiveRecord
 			$validation_messages
 		);
 		
-		$validation_messages = array_unique($validation_messages);
-		
 		$validation_messages = fORMValidation::replaceMessages($class, $validation_messages);
 		$validation_messages = fORMValidation::reorderMessages($class, $validation_messages);
 		
@@ -2897,7 +2962,7 @@ abstract class fActiveRecord
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>, others
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>, others
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

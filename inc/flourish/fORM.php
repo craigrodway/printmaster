@@ -2,14 +2,21 @@
 /**
  * Dynamically handles many centralized object-relational mapping tasks
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond
+ * @copyright  Copyright (c) 2007-2011 Will Bond
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fORM
  * 
- * @version    1.0.0b21
+ * @version    1.0.0b28
+ * @changes    1.0.0b28  Updated ::getColumnName() and ::getRecordName() to use fText if loaded [wb, 2011-02-02]
+ * @changes    1.0.0b27  Added links to the detailed documentation for the parameters passed to hooks [wb, 2010-11-27]
+ * @changes    1.0.0b26  Added ::getRelatedClass() for handling related classes in PHP 5.3 namespaces [wb, 2010-11-17]
+ * @changes    1.0.0b25  Added support for PHP 5.3 namespaced fActiveRecord classes [wb, 2010-11-11]
+ * @changes    1.0.0b24  Backwards Compatibility Break - Callbacks registered via ::registerRecordSetMethod() should now accept the `$method_name` in the position where the `$pointer` parameter used to be passed [wb, 2010-09-28]
+ * @changes    1.0.0b23  Added the `'pre::replicate()'`, `'post::replicate()'` and `'cloned::replicate()'` hooks [wb, 2010-09-07]
+ * @changes    1.0.0b22  Internal Backwards Compatibility Break - changed ::parseMethod() to not underscorize the subject of the method [wb, 2010-08-06]
  * @changes    1.0.0b21  Fixed some documentation to reflect the API changes from v1.0.0b9 [wb, 2010-07-14]
  * @changes    1.0.0b20  Added the ability to register a wildcard active record method for all classes [wb, 2010-04-22]
  * @changes    1.0.0b19  Added the method ::isClassMappedToTable() [wb, 2010-03-30]
@@ -48,6 +55,7 @@ class fORM
 	const getDatabaseName            = 'fORM::getDatabaseName';
 	const getRecordName              = 'fORM::getRecordName';
 	const getRecordSetMethod         = 'fORM::getRecordSetMethod';
+	const getRelatedClass            = 'fORM::getRelatedClass';
 	const isClassMappedToTable       = 'fORM::isClassMappedToTable';
 	const mapClassToDatabase         = 'fORM::mapClassToDatabase';
 	const mapClassToTable            = 'fORM::mapClassToTable';
@@ -153,6 +161,13 @@ class fORM
 	 * @var array
 	 */
 	static private $reflect_callbacks = array();
+	
+	/**
+	 * A cache for resolving related class names for fActiveRecord classes in a PHP 5.3 namespace
+	 * 
+	 * @var array
+	 */
+	static private $related_class_names = array();
 	
 	/**
 	 * Callbacks for ::replicate()
@@ -492,6 +507,14 @@ class fORM
 			self::$column_names[$class][$column] = fGrammar::humanize($column);
 		}
 		
+		// If fText is loaded, use it
+		if (class_exists('fText', FALSE)) {
+			return call_user_func(
+				array('fText', 'compose'),
+				str_replace('%', '%%', self::$column_names[$class][$column])
+			);
+		}
+		
 		return self::$column_names[$class][$column];
 	}
 	
@@ -528,7 +551,22 @@ class fORM
 	static public function getRecordName($class)
 	{
 		if (!isset(self::$record_names[$class])) {
-			self::$record_names[$class] = fGrammar::humanize($class);
+			self::$record_names[$class] = fGrammar::humanize(
+				// Strip the namespace off the class name
+				preg_replace(
+					'#^.*\\\\#',
+					'',
+					$class
+				)
+			);
+		}
+		
+		// If fText is loaded, use it
+		if (class_exists('fText', FALSE)) {
+			return call_user_func(
+				array('fText', 'compose'),
+				str_replace('%', '%%', self::$record_names[$class])
+			);
 		}
 		
 		return self::$record_names[$class];
@@ -563,6 +601,32 @@ class fORM
 		}
 		
 		return NULL;	
+	}
+	
+	
+	/**
+	 * Takes a class name and related class name and ensures the related class has the appropriate namespace prefix
+	 *
+	 * @internal
+	 * 
+	 * @param  string $class          The primary class
+	 * @param  string $related_class  The related class name
+	 * @return string  The related class name, with the appropriate namespace prefix
+	 */
+	static public function getRelatedClass($class, $related_class)
+	{
+		if (isset(self::$related_class_names[$class][$related_class])) {
+			return self::$related_class_names[$class][$related_class];
+		}
+		
+		$original_related_class = $related_class;
+		if (strpos($class, '\\') !== FALSE && strpos($related_class, '\\') === FALSE) {
+			$reflection = new ReflectionClass($class);
+	        $related_class = $reflection->getNamespaceName() . '\\' . $related_class;
+		}
+		self::$related_class_names[$class][$original_related_class] = $related_class;
+		
+		return $related_class;
 	}
 	
 	
@@ -735,7 +799,7 @@ class fORM
 				$method
 			);	
 		}
-		self::$cache['parseMethod'][$method] = array($matches[1], fGrammar::underscorize($matches[2]));
+		self::$cache['parseMethod'][$method] = array($matches[1], $matches[2]);
 		return self::$cache['parseMethod'][$method];
 	}
 	
@@ -782,14 +846,20 @@ class fORM
 	 * The method signature should include the follow parameters:
 	 * 
 	 *  - **`$object`**:           The fActiveRecord instance
-	 *  - **`&$values`**:          The values array for the record
-	 *  - **`&$old_values`**:      The old values array for the record
-	 *  - **`&$related_records`**: The related records array for the record
-	 *  - **`&$cache`**:           The cache array for the record
+	 *  - **`&$values`**:          The values array for the record - see the [http://flourishlib.com/docs/fORM#values $values] documentation for details
+	 *  - **`&$old_values`**:      The old values array for the record - see the [http://flourishlib.com/docs/fORM#old_values $old_values] documentation for details
+	 *  - **`&$related_records`**: The related records array for the record - see the [http://flourishlib.com/docs/fORM#related_records $related_records] documentation for details
+	 *  - **`&$cache`**:           The cache array for the record - see the [http://flourishlib.com/docs/fORM#cache $cache] documentation for details
 	 * 
-	 * The `'pre::validate()'` and `'post::validate()'` hooks have an extra parameter:
+	 * The `'pre::validate()'` and `'post::validate()'` hooks have an extra
+	 * parameter:
 	 * 
-	 *  - **`&$validation_messages`**: An ordered array of validation errors that will be returned or tossed as an fValidationException
+	 *  - **`&$validation_messages`**: An ordered array of validation errors that will be returned or tossed as an fValidationException - see the [http://flourishlib.com/docs/fORM#validation_messages $validation_messages] documentation for details
+	 * 
+	 * The `'pre::replicate()'`, `'post::replicate()'` and
+	 * `'cloned::replicate()'` hooks have an extra parameter:
+	 * 
+	 *  - **`$replication_level`**: An integer representing the level of recursion - the object being replicated will be `0`, children will be `1`, grandchildren `2` and so on.
 	 *  
 	 * Below is a list of all valid hooks:
 	 * 
@@ -804,6 +874,9 @@ class fORM
 	 *  - `'post::loadFromResult()'`
 	 *  - `'pre::populate()'`
 	 *  - `'post::populate()'`
+	 *  - `'pre::replicate()'`
+	 *  - `'post::replicate()'`
+	 *  - `'cloned::replicate()'`
 	 *  - `'pre::store()'`
 	 *  - `'post-begin::store()'`
 	 *  - `'post-validate::store()'`
@@ -835,6 +908,9 @@ class fORM
 			'post::loadFromResult()',
 			'pre::populate()',
 			'post::populate()',
+			'pre::replicate()',
+			'post::replicate()',
+			'cloned::replicate()',
 			'pre::store()',
 			'post-begin::store()',
 			'post-validate::store()',
@@ -931,7 +1007,7 @@ class fORM
 	 *  - **`$object`**:      The actual record set
 	 *  - **`$class`**:       The class of each record
 	 *  - **`&$records`**:    The ordered array of fActiveRecord objects
-	 *  - **`&$pointer`**:    The current array pointer for the records array
+	 *  - **`$method_name`**: The method name that was called
 	 *  - **`$parameters`**:  Any parameters passed to the method
 	 * 
 	 * @param  string   $method    The method to hook for
@@ -1084,6 +1160,7 @@ class fORM
 		);
 		self::$record_set_method_callbacks    = array();
 		self::$reflect_callbacks              = array();
+		self::$related_class_names            = array();
 		self::$replicate_callbacks            = array();
 		self::$scalarize_callbacks            = array();
 	}
@@ -1126,7 +1203,14 @@ class fORM
 	static public function tablize($class)
 	{
 		if (!isset(self::$class_table_map[$class])) {
-			self::$class_table_map[$class] = fGrammar::underscorize(fGrammar::pluralize($class));
+			self::$class_table_map[$class] = fGrammar::underscorize(fGrammar::pluralize(
+				// Strip the namespace off the class name
+				preg_replace(
+					'#^.*\\\\#',
+					'',
+					$class
+				)
+			));
 		}
 		return self::$class_table_map[$class];
 	}
@@ -1143,7 +1227,7 @@ class fORM
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

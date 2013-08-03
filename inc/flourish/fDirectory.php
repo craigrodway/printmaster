@@ -2,7 +2,7 @@
 /**
  * Represents a directory on the filesystem, also provides static directory-related methods
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond, others
+ * @copyright  Copyright (c) 2007-2011 Will Bond, others
  * @author     Will Bond [wb] <will@flourishlib.com>
  * @author     Will Bond, iMarc LLC [wb-imarc] <will@imarc.net>
  * @license    http://flourishlib.com/license
@@ -10,7 +10,10 @@
  * @package    Flourish
  * @link       http://flourishlib.com/fDirectory
  * 
- * @version    1.0.0b11
+ * @version    1.0.0b14
+ * @changes    1.0.0b14  Fixed a bug in ::delete() where a non-existent method was being called on fFilesystem, added a permission check to ::delete() [wb, 2011-08-23]
+ * @changes    1.0.0b13  Added the ::clear() method [wb, 2011-01-10]
+ * @changes    1.0.0b12  Fixed ::scanRecursive() to not add duplicate entries for certain nested directory structures [wb, 2010-08-10]
  * @changes    1.0.0b11  Fixed ::scan() to properly add trailing /s for directories [wb, 2010-03-16]
  * @changes    1.0.0b10  BackwardsCompatibilityBreak - Fixed ::scan() and ::scanRecursive() to strip the current directory's path before matching, added support for glob style matching [wb, 2010-03-05]
  * @changes    1.0.0b9   Changed the way directories deleted in a filesystem transaction are handled, including improvements to the exception that is thrown [wb+wb-imarc, 2010-03-05]
@@ -182,6 +185,23 @@ class fDirectory
 	
 	
 	/**
+	 * Removes all files and directories inside of the directory
+	 * 
+	 * @return void
+	 */
+	public function clear()
+	{
+		if ($this->deleted) {
+			return;	
+		}
+		
+		foreach ($this->scan() as $file) {
+			$file->delete();
+		}
+	}
+	
+	
+	/**
 	 * Will delete a directory and all files and directories inside of it
 	 * 
 	 * This operation will not be performed until the filesystem transaction
@@ -196,6 +216,13 @@ class fDirectory
 		if ($this->deleted) {
 			return;	
 		}
+
+		if (!$this->getParent()->isWritable()) {
+			throw new fEnvironmentException(
+				'The directory, %s, can not be deleted because the directory containing it is not writable',
+				$this->directory
+			);
+		}
 		
 		$files = $this->scan();
 		
@@ -205,7 +232,7 @@ class fDirectory
 		
 		// Allow filesystem transactions
 		if (fFilesystem::isInsideTransaction()) {
-			return fFilesystem::delete($this);
+			return fFilesystem::recordDelete($this);
 		}
 		
 		rmdir($this->directory);
@@ -477,10 +504,9 @@ class fDirectory
 		
 		$objects = $this->scan();
 		
-		$total_files = sizeof($objects);
-		for ($i=0; $i < $total_files; $i++) {
+		for ($i=0; $i < sizeof($objects); $i++) {
 			if ($objects[$i] instanceof fDirectory) {
-				array_splice($objects, $i+1, 0, $objects[$i]->scanRecursive());
+				array_splice($objects, $i+1, 0, $objects[$i]->scan());
 			}
 		}
 		
@@ -531,7 +557,7 @@ class fDirectory
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>, others
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>, others
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

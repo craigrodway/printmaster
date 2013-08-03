@@ -5,14 +5,27 @@
  * The functionality of this class only works with single-field `FOREIGN KEY`
  * constraints.
  * 
- * @copyright  Copyright (c) 2007-2010 Will Bond
+ * @copyright  Copyright (c) 2007-2011 Will Bond, others
  * @author     Will Bond [wb] <will@flourishlib.com>
+ * @author     Will Bond, iMarc LLC [wb-imarc] <will@imarc.net>
  * @license    http://flourishlib.com/license
  * 
  * @package    Flourish
  * @link       http://flourishlib.com/fORMRelated
  * 
- * @version    1.0.0b33
+ * @version    1.0.0b44
+ * @changes    1.0.0b44  Added missing information for has and list methods to ::reflect() [wb, 2011-09-07]
+ * @changes    1.0.0b43  Fixed some bugs in handling relationships between PHP 5.3 namespaced classes [wb, 2011-05-26]
+ * @changes    1.0.0b42  Fixed a bug with ::associateRecords() not associating record set via primary key [wb, 2011-05-23]
+ * @changes    1.0.0b41  Fixed a bug in generating errors messages for many-to-many relationships [wb, 2011-03-07]
+ * @changes    1.0.0b40  Updated ::getRelatedRecordName() to use fText if loaded [wb, 2011-02-02]
+ * @changes    1.0.0b39  Fixed a bug with ::validate() not properly removing validation messages about a related primary key value not being present yet, if the column and related column names were different [wb, 2010-11-24]
+ * @changes    1.0.0b38  Updated ::overrideRelatedRecordName() to prefix any namespace from `$class` to `$related_class` if not already present [wb, 2010-11-24]
+ * @changes    1.0.0b37  Fixed a documentation typo [wb, 2010-11-04]
+ * @changes    1.0.0b36  Fixed ::getPrimaryKeys() to not throw SQL exceptions [wb, 2010-10-20]
+ * @changes    1.0.0b35  Backwards Compatibility Break - changed the validation messages array to use nesting for child records [wb-imarc+wb, 2010-10-03]
+ * @changes    1.0.0b35  Updated ::getPrimaryKeys() to always return primary keys in a consistent order when no order bys are specified [wb, 2010-07-26]
+ * @changes    1.0.0b34  Updated the class to work with fixes in fORMRelated [wb, 2010-07-22]
  * @changes    1.0.0b33  Fixed the related table populate action to use the plural underscore_notation version of the related class name [wb, 2010-07-08]
  * @changes    1.0.0b32  Backwards Compatibility Break - related table populate action now use the underscore_notation version of the class name instead of the related table name, allowing for related tables in non-standard schemas [wb, 2010-06-23]
  * @changes    1.0.0b31  Fixed ::reflect() to properly show parameters for associate methods [wb, 2010-06-08]
@@ -50,28 +63,29 @@
 class fORMRelated
 {
 	// The following constants allow for nice looking callbacks to static methods
-	const associateRecords          = 'fORMRelated::associateRecords';
-	const buildRecords              = 'fORMRelated::buildRecords';
-	const countRecords              = 'fORMRelated::countRecords';
-	const createRecord              = 'fORMRelated::createRecord';
-	const determineRequestFilter    = 'fORMRelated::determineRequestFilter';
-	const flagForAssociation        = 'fORMRelated::flagForAssociation';
-	const getOrderBys               = 'fORMRelated::getOrderBys';
-	const getRelatedRecordName      = 'fORMRelated::getRelatedRecordName';
-	const hasRecords                = 'fORMRelated::hasRecords';
-	const linkRecords               = 'fORMRelated::linkRecords';
-	const overrideRelatedRecordName = 'fORMRelated::overrideRelatedRecordName';
-	const populateRecords           = 'fORMRelated::populateRecords';
-	const reflect                   = 'fORMRelated::reflect';
-	const reset                     = 'fORMRelated::reset';
-	const setOrderBys               = 'fORMRelated::setOrderBys';
-	const setCount                  = 'fORMRelated::setCount';
-	const setPrimaryKeys            = 'fORMRelated::setPrimaryKeys';
-	const setRecordSet              = 'fORMRelated::setRecordSet';
-	const store                     = 'fORMRelated::store';
-	const storeManyToMany           = 'fORMRelated::storeManyToMany';
-	const storeOneToMany            = 'fORMRelated::storeOneToMany';
-	const validate                  = 'fORMRelated::validate';
+	const associateRecords             = 'fORMRelated::associateRecords';
+	const buildRecords                 = 'fORMRelated::buildRecords';
+	const countRecords                 = 'fORMRelated::countRecords';
+	const createRecord                 = 'fORMRelated::createRecord';
+	const determineRequestFilter       = 'fORMRelated::determineRequestFilter';
+	const flagForAssociation           = 'fORMRelated::flagForAssociation';
+	const getOrderBys                  = 'fORMRelated::getOrderBys';
+	const getRelatedRecordName         = 'fORMRelated::getRelatedRecordName';
+	const hasRecords                   = 'fORMRelated::hasRecords';
+	const linkRecords                  = 'fORMRelated::linkRecords';
+	const overrideRelatedRecordName    = 'fORMRelated::overrideRelatedRecordName';
+	const populateRecords              = 'fORMRelated::populateRecords';
+	const reflect                      = 'fORMRelated::reflect';
+	const registerValidationNameMethod = 'fORMRelated::registerValidationNameMethod';
+	const reset                        = 'fORMRelated::reset';
+	const setOrderBys                  = 'fORMRelated::setOrderBys';
+	const setCount                     = 'fORMRelated::setCount';
+	const setPrimaryKeys               = 'fORMRelated::setPrimaryKeys';
+	const setRecordSet                 = 'fORMRelated::setRecordSet';
+	const store                        = 'fORMRelated::store';
+	const storeManyToMany              = 'fORMRelated::storeManyToMany';
+	const storeOneToMany               = 'fORMRelated::storeOneToMany';
+	const validate                     = 'fORMRelated::validate';
 	
 	
 	/**
@@ -94,6 +108,13 @@ class fORMRelated
 	 * @var array
 	 */
 	static private $related_record_names = array();
+	
+	/**
+	 * Methods to use for getting the name of related records when performing validation
+	 * 
+	 * @var array
+	 */
+	static private $validation_name_methods = array();
 	
 	
 	/**
@@ -216,19 +237,19 @@ class fORMRelated
 		$relationship = fORMSchema::getRoute($schema, $table, $related_table, $route, '*-to-many');
 		
 		// Determine how we are going to build the sequence
-		if ($values[$relationship['column']] === NULL) {
+		if (isset($related_records[$related_table][$route]['primary_keys'])) {
+			$primary_key_column = current($schema->getKeys($related_table, 'primary'));
+			$where_conditions   = array($primary_key_column . '=' => $related_records[$related_table][$route]['primary_keys']);
+			$order_bys          = self::getOrderBys($class, $related_class, $route);
+			$record_set         = fRecordSet::build($related_class, $where_conditions, $order_bys);
+			$related_records[$related_table][$route]['record_set'] = $record_set;
+			return $record_set;
+
+		} elseif ($values[$relationship['column']] === NULL) {
 			$record_set = fRecordSet::buildFromArray($related_class, array());
 		
 		} else {
-			// When joining to the same table, we have to use a different column
-			$same_class = $related_class == fORM::getClass($class);
-			if ($same_class && isset($relationship['join_table'])) {
-				$column = $table . '{' . $relationship['join_table'] . '}.' . $relationship['column'];
-			} elseif ($same_class) {
-				$column = $table . '{' . $route . '}.' . $relationship['related_column'];
-			} else {
-				$column = $table . '{' . $route . '}.' . $relationship['column'];
-			}
+			$column = $table . '{' . $route . '}.' . $relationship['column'];
 			
 			$where_conditions = array($column . '=' => $values[$relationship['column']]);
 			$order_bys        = self::getOrderBys($class, $related_class, $route);
@@ -236,7 +257,7 @@ class fORMRelated
 		}
 		
 		self::setRecordSet($class, $related_records, $related_class, $record_set, $route);
-		
+
 		return $record_set;
 	}
 	
@@ -318,10 +339,8 @@ class fORMRelated
 				);
 				$params[] = $value;
 				
-				$params[0] .= ' :group_by_clause';
-				
 				$params = fORMDatabase::injectFromAndGroupByClauses($db, $schema, $params, $related_table);
-			
+				
 			// Many-to-many relationships allow counting just from the join table
 			} else {
 				
@@ -356,7 +375,7 @@ class fORMRelated
 	 * @param  array  &$related_records  The related records for the record
 	 * @param  string $related_class     The related class name
 	 * @param  string $route             The route to the related class
-	 * @return fActiveRecord  An instace of the class specified
+	 * @return fActiveRecord  An instance of the class specified
 	 */
 	static public function createRecord($class, $values, &$related_records, $related_class, $route=NULL)
 	{
@@ -391,7 +410,7 @@ class fORMRelated
 		if ($one_to_one) {
 			if (isset($related_records[$related_table][$route]['record_set'])) {
 				if ($related_records[$related_table][$route]['record_set']->count()) {
-					return $related_records[$related_table][$route]['record_set']->current();
+					return $related_records[$related_table][$route]['record_set'][0];
 				}
 				return new $related_class();
 			}
@@ -410,7 +429,7 @@ class fORMRelated
 			self::setRecordSet($class, $related_records, $related_class, $record_set, $route);
 			
 			if ($record_set->count()) {
-				return $record_set->current();		
+				return $record_set[0];		
 			}
 			return new $related_class();	
 		}
@@ -609,12 +628,11 @@ class fORMRelated
 				$column_info        = $schema->getColumnInfo($related_table);
 				$column             = $relationship['column'];
 				
-				$new_related_pk_columns = array();
+				$aliased_related_pk_columns = array();
 				foreach ($related_pk_columns as $related_pk_column) {
 					// We explicitly alias the columns due to SQLite issues
-					$new_related_pk_columns[] = $db->escape("%r AS %r", $related_table . '.' . $related_pk_column, $related_pk_column);	
+					$aliased_related_pk_columns[] = $db->escape("%r AS %r", $related_table . '.' . $related_pk_column, $related_pk_column);	
 				}
-				$related_pk_columns = $new_related_pk_columns;
 				
 				if (isset($relationship['join_table'])) {
 					$table_with_route = $table . '{' . $relationship['join_table'] . '}';	
@@ -629,7 +647,7 @@ class fORMRelated
 					$db->escape(
 						sprintf(
 							"SELECT %s FROM :from_clause WHERE",
-							join(', ', $related_pk_columns)
+							join(', ', $aliased_related_pk_columns)
 						) . " %r = ",
 						$table_with_route . '.' . $column
 					),
@@ -639,13 +657,17 @@ class fORMRelated
 				
 				$params[0] .= " :group_by_clause ";
 				
-				if ($order_bys = self::getOrderBys($class, $related_class, $route)) {
-					$params[0] .= " ORDER BY ";
-					$params = fORMDatabase::addOrderByClause($db, $schema, $params, $related_table, $order_bys);
+				if (!$order_bys = self::getOrderBys($class, $related_class, $route)) {
+					$order_bys = array();
+					foreach ($related_pk_columns as $related_pk_column) {
+						$order_bys[$related_pk_column] = 'ASC';
+					}
 				}
+				$params[0] .= " ORDER BY ";
+				$params = fORMDatabase::addOrderByClause($db, $schema, $params, $related_table, $order_bys);
 				
 				$params = fORMDatabase::injectFromAndGroupByClauses($db, $schema, $params, $related_table);
-					
+				
 				$result = call_user_func_array($db->translatedQuery, $params);
 				
 				$primary_keys = array();
@@ -702,6 +724,14 @@ class fORMRelated
 			  !isset(self::$related_record_names[$table][$related_class]) ||
 			  !isset(self::$related_record_names[$table][$related_class][$route])) {
 			return fORM::getRecordName($related_class);
+		}
+		
+		// If fText is loaded, use it
+		if (class_exists('fText', FALSE)) {
+			return call_user_func(
+				array('fText', 'compose'),
+				str_replace('%', '%%', self::$related_record_names[$table][$related_class][$route])
+			);
 		}
 		
 		return self::$related_record_names[$table][$related_class][$route];
@@ -832,7 +862,9 @@ class fORMRelated
 		
 		$class         = fORM::getClass($class);
 		$table         = fORM::tablize($class);
+		
 		$related_class = fORM::getClass($related_class);
+		$related_class = fORM::getRelatedClass($class, $related_class);
 		$related_table = fORM::tablize($related_class);
 		
 		$schema = fORMSchema::retrieve($class);
@@ -938,6 +970,7 @@ class fORMRelated
 		
 		foreach ($to_one_relationships as $relationship) {
 			$related_class = fORM::classize($relationship['related_table']);
+			$related_class = fORM::getRelatedClass($class, $related_class);
 			
 			if (isset($to_one_created[$related_class])) {
 				continue;
@@ -977,6 +1010,7 @@ class fORMRelated
 		
 		foreach ($one_to_one_relationships as $relationship) {
 			$related_class = fORM::classize($relationship['related_table']);
+			$related_class = fORM::getRelatedClass($class, $related_class);
 			
 			if (isset($one_to_one_created[$related_class])) {
 				continue;
@@ -1029,6 +1063,26 @@ class fORMRelated
 			$signature .= ')';
 			
 			$signatures[$associate_method] = $signature;
+
+			$signature = '';
+			if ($include_doc_comments) {
+				$signature .= "/**\n";
+				$signature .= " * Indicates if a related " . $related_class . " exists\n";
+				$signature .= " * \n";
+				if (sizeof($route_names) > 1) {
+					$signature .= " * @param  string \$route  The route to the related class. Must be one of: '" . join("', '", $route_names) . "'.\n";
+				}
+				$signature .= " * @return boolean  If a related record exists\n";
+				$signature .= " */\n";
+			}
+			$has_method = 'has' . $related_class;
+			$signature .= 'public function ' . $has_method . '($record';
+			if (sizeof($route_names) > 1) {
+				$signature .= ', $route';
+			}
+			$signature .= ')';
+			
+			$signatures[$has_method] = $signature;
 			
 			$one_to_one_created[$related_class] = TRUE;		
 		}
@@ -1037,6 +1091,7 @@ class fORMRelated
 		
 		foreach ($to_many_relationships as $relationship) {
 			$related_class = fORM::classize($relationship['related_table']);
+			$related_class = fORM::getRelatedClass($class, $related_class);
 			
 			if (isset($to_many_created[$related_class])) {
 				continue;
@@ -1154,6 +1209,46 @@ class fORMRelated
 			$signature .= ')';
 			
 			$signatures[$build_method] = $signature;
+
+			$signature = '';
+			if ($include_doc_comments) {
+				$signature .= "/**\n";
+				$signature .= " * Indicates if related " . $related_class . " objects exist\n";
+				$signature .= " * \n";
+				if (sizeof($route_names) > 1) {
+					$signature .= " * @param  string \$route  The route to the related class. Must be one of: '" . join("', '", $route_names) . "'.\n";
+				}
+				$signature .= " * @return boolean  If related " . $related_class . " objects exist\n";
+				$signature .= " */\n";
+			}
+			$has_method = 'has' . fGrammar::pluralize($related_class);
+			$signature .= 'public function ' . $has_method . '(';
+			if (sizeof($route_names) > 1) {
+				$signature .= '$route';
+			}
+			$signature .= ')';
+			
+			$signatures[$has_method] = $signature;
+
+			$signature = '';
+			if ($include_doc_comments) {
+				$signature .= "/**\n";
+				$signature .= " * Returns an array of the primary keys for the related " . $related_class . " objects\n";
+				$signature .= " * \n";
+				if (sizeof($route_names) > 1) {
+					$signature .= " * @param  string \$route  The route to the related class. Must be one of: '" . join("', '", $route_names) . "'.\n";
+				}
+				$signature .= " * @return array  The primary keys of the related " . $related_class . " objects\n";
+				$signature .= " */\n";
+			}
+			$list_method = 'list' . fGrammar::pluralize($related_class);
+			$signature .= 'public function ' . $list_method . '(';
+			if (sizeof($route_names) > 1) {
+				$signature .= '$route';
+			}
+			$signature .= ')';
+			
+			$signatures[$list_method] = $signature;
 			
 			
 			$signature = '';
@@ -1179,6 +1274,33 @@ class fORMRelated
 			
 			$to_many_created[$related_class] = TRUE;
 		}
+	}
+	
+	
+	/**
+	 * Registers a method to use to get a name for a related record when doing validation
+	 * 
+	 * @param string|fActiveRecord $class          The class to register the method for
+	 * @param string               $related_class  The related class to register the method for
+	 * @param string               $method         The method to be called on the related class that will return the name
+	 * @param string               $route          The route to the related class
+	 */
+	static public function registerValidationNameMethod($class, $related_class, $method, $route=NULL)
+	{
+		$class         = fORM::getClass($class);
+		$table         = fORM::tablize($class);
+		$related_table = fORM::tablize($related_class);
+		$schema        = fORMSchema::retrieve($class);
+		$route         = fORMSchema::getRouteName($schema, $table, $related_table, $route, 'one-to-many');
+		
+		if (!isset(self::$validation_name_methods[$class])) {
+			self::$validation_name_methods[$class] = array();
+		}
+		if (!isset(self::$validation_name_methods[$class][$related_class])) {
+			self::$validation_name_methods[$class][$related_class] = array();
+		}
+		
+		self::$validation_name_methods[$class][$related_class][$route] = $method;
 	}
 	
 	
@@ -1213,6 +1335,8 @@ class fORMRelated
 		
 		$class         = fORM::getClass($class);
 		$table         = fORM::tablize($class);
+		
+		$related_class = fORM::getRelatedClass($class, $related_class);
 		$related_table = fORM::tablize($related_class);
 		
 		$schema = fORMSchema::retrieve($class);
@@ -1372,7 +1496,9 @@ class fORMRelated
 				if (isset($relationship['join_table'])) {
 					fORMRelated::storeManyToMany($class, $values, $relationship, $related_info);
 				} else {
-					fORMRelated::storeOneToStar($class, $values, $related_records, fORM::classize($related_table), $route, $force_cascade);
+					$related_class = fORM::classize($related_table);
+					$related_class = fORM::getRelatedClass($class, $related_class);
+					fORMRelated::storeOneToStar($class, $values, $related_records, $related_class, $route, $force_cascade);
 				}
 			}
 		}
@@ -1425,6 +1551,7 @@ class fORMRelated
 			// If there is no record set, build it from the primary keys
 			if (!$related_info['record_set']) {
 				$related_class = fORM::classize($relationship['related_table']);
+				$related_class = fORM::getRelatedClass($class, $related_class);
 				$related_info['record_set'] = fRecordSet::build($related_class, array($related_pk_columns[0] . '=' => $related_info['primary_keys']));
 			}
 			
@@ -1483,7 +1610,7 @@ class fORMRelated
 		} else {
 			$record_set = self::buildRecords($class, $values, $related_records, $related_class, $route);	
 		}
-		
+
 		$where_conditions = array(
 			$relationship['related_column'] . '=' => $column_value
 		);
@@ -1546,6 +1673,7 @@ class fORMRelated
 				}
 				
 				$related_class = fORM::classize($related_table);
+				$related_class = fORM::getRelatedClass($class, $related_class);
 				$relationship  = fORMSchema::getRoute($schema, $table, $related_table, $route);
 																												
 				if (isset($relationship['join_table'])) {
@@ -1577,6 +1705,7 @@ class fORMRelated
 		$schema              = fORMSchema::retrieve($class);
 		$table               = fORM::tablize($class);
 		$related_table       = fORM::tablize($related_class);
+		$relationship        = fORMSchema::getRoute($schema, $table, $related_table, $route);
 		
 		$first_pk_column     = self::determineFirstPKColumn($class, $related_class, $route);
 		$filter              = self::determineRequestFilter($class, $related_class, $route);
@@ -1601,35 +1730,45 @@ class fORMRelated
 			
 			foreach ($record_messages as $column => $record_message) {
 				// Ignore validation messages about the primary key since it will be added
-				if ($column == $route) {
-					continue;
+				if ($column == $relationship['related_column']) {
+				    continue;
 				}
 				
-				$token_field           = fValidationException::formatField('__TOKEN__');
-				$extract_message_regex = '#' . str_replace('__TOKEN__', '(.*?)', preg_quote($token_field, '#')) . '(.*)$#D';
-				preg_match($extract_message_regex, $record_message, $matches);
-				
 				if ($one_to_one) {
+					$token_field           = fValidationException::formatField('__TOKEN__');
+					$extract_message_regex = '#' . str_replace('__TOKEN__', '(.*?)', preg_quote($token_field, '#')) . '(.*)$#D';
+					preg_match($extract_message_regex, $record_message, $matches);
+				
 					$column_name = self::compose(
 						'%1$s %2$s',
 						$related_record_name,
 						$matches[1]
 					);
 					
+					$messages[$related_table . '::' . $column] = self::compose(
+						'%1$s%2$s',
+						fValidationException::formatField($column_name),
+						$matches[2]
+					);
+					
 				} else {
-					$column_name = self::compose(
-						'%1$s #%2$s %3$s',
-						$related_record_name,
-						$i+1,
-						$matches[1]
-					);	
+					$main_key = $related_table . '[' . $i . ']';
+					if (!isset($messages[$main_key])) {
+						if (isset(self::$validation_name_methods[$class][$related_class][$route])) {
+							$name = $record->{self::$validation_name_methods[$class][$related_class][$route]}($i+1);
+						} else {
+							$name = $related_record_name . ' #' . ($i+1);
+						}
+						$messages[$main_key] = array(
+							'name'   => $name,
+							'errors' => array()
+						);
+					}
+					
+					$messages[$main_key]['errors'][$column] = $record_message;
 				}
 				
-				$messages[$related_table . (!$one_to_one ? '[' . $i . ']' : '') . '::' . $column] = self::compose(
-					'%1$s%2$s',
-					fValidationException::formatField($column_name),
-					$matches[2]
-				);
+				
 			}
 			fRequest::unfilter();
 		}
@@ -1649,7 +1788,7 @@ class fORMRelated
 	 */
 	static private function validateManyToMany($class, $related_class, $route, $related_info)
 	{
-		$related_record_name = fORMRelated::getRelatedRecordName($class, $related_class, $route);
+		$related_record_name = self::getRelatedRecordName($class, $related_class, $route);
 		$record_number = 1;
 		
 		$messages = array();
@@ -1659,7 +1798,7 @@ class fORMRelated
 		foreach ($related_records as $record) {
 			if ((is_object($record) && !$record->exists()) || !$record) {
 				$messages[fORM::tablize($related_class)] = self::compose(
-					'%sPlease select a %3$s',
+					'%1$sPlease select a %2$s',
 					fValidationException::formatField(
 						self::compose(
 							'%1$s #%2$s',
@@ -1688,7 +1827,7 @@ class fORMRelated
 
 
 /**
- * Copyright (c) 2007-2010 Will Bond <will@flourishlib.com>
+ * Copyright (c) 2007-2011 Will Bond <will@flourishlib.com>, others
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
