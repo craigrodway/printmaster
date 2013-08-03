@@ -73,6 +73,19 @@ table.list tr td ul.linkbar{ font-size:90%; }
 table.list tr.filters td input, table.list tr.filters td select{ font-size: 90%; padding:0; }
 table.list tr.filters td{ background: #EEEEEC; }
 
+/* Table Filter */
+
+.formTableFilter label {
+	font-weight: bold;
+}
+
+.formTableFilter input {
+  border: 1px solod #ccc;
+  color: #000;
+  background-color: #fff;
+  padding: 2px;
+}
+
 
 /* Form table */
 table.form{ width:100%; font-size:90%; }

@@ -11,11 +11,6 @@ $tpl->set('menuitems', $menuitems);
 <?php $tpl->place('menu'); ?>
 <br />
 
-<p class="noprint">
-	<label for="search"><strong>Find printer:</strong></label>
-	<input type="text" name="search" id="search" size="30" autocomplete="off" />
-</p>
-
 <?php #fCore::expose($printers); ?>
 
 <table class="list" id="printers">
@@ -89,12 +84,11 @@ $tpl->set('menuitems', $menuitems);
 
 <script type="text/javascript">
 $(document).ready(function(){
-	var options = {
-		additionalFilterTriggers: [$('#search')],
-		filterDelay: 1
-	};
-	$('#printers').tableFilter(options);
-	$('#search').focus();
+	$("table#printers").addTableFilter({
+		labelText: "Find printer:",
+		size: 30
+	});
+	$('#printers-filtering').focus();
 });
 </script>
 

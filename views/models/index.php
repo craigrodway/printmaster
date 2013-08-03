@@ -11,14 +11,17 @@ $tpl->set('menuitems', $menuitems);
 <?php $tpl->place('menu'); ?>
 <br />
 
-<table class="list">
-	<tr class="heading">
-		<th><?php echo fCRUD::printSortableColumn('models.colour', 'Colour') ?></th>
-		<th><?php echo fCRUD::printSortableColumn('manufacturers.name', 'Manufacturer') ?></th>
-		<th><?php echo fCRUD::printSortableColumn('models.name', 'Name') ?></th>
-		<th>Operations</th>
-	</tr>
+<table class="list" id="models">
+	<thead>
+		<tr class="heading">
+			<th><?php echo fCRUD::printSortableColumn('models.colour', 'Colour') ?></th>
+			<th><?php echo fCRUD::printSortableColumn('manufacturers.name', 'Manufacturer') ?></th>
+			<th><?php echo fCRUD::printSortableColumn('models.name', 'Name') ?></th>
+			<th>Operations</th>
+		</tr>
+	</thead>
 	
+	<tbody>
 	<?php
 	foreach($models as $m){
 		
@@ -42,10 +45,21 @@ $tpl->set('menuitems', $menuitems);
 		echo '</tr>';
 	}
 	?>
+	</tbody>
 	
 </table>
 
 </div>
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$("table#models").addTableFilter({
+		labelText: "Find model:",
+		size: 30
+	});
+	$('#models-filtering').focus();
+});
+</script>
 
 <?php
 $tpl->place('footer')

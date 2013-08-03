@@ -11,11 +11,6 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 <div class="grid_12">
 
-<p class="noprint">
-	<label for="search"><strong>Find:</strong></label>
-	<input type="text" name="search" id="search" size="30" autocomplete="off" />
-</p>
-
 <table class="list" id="events">
 	<thead>
 	<tr class="heading">
@@ -73,12 +68,11 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 <script type="text/javascript">
 $(document).ready(function(){
-	var options = {
-		additionalFilterTriggers: [$('#search')],
-		filterDelay: 1
-	};
-	$('#events').tableFilter(options);
-	$('#search').focus();
+	$("table#events").addTableFilter({
+		labelText: "Find:",
+		size: 30
+	});
+	$('#printers-filtering').focus();
 });
 </script>
 

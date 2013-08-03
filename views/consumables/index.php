@@ -14,14 +14,18 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 <?php $tpl->place('menu'); ?>
 <br />
 
-<table class="list">
-	<tr class="heading">
-		<th>Colour</th>
-		<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
-		<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?></th>
-		<th>Printer models</th>
-		<th>Operations</th>
-	</tr>
+<table class="list" id="consumables">
+	<thead>
+		<tr class="heading">
+			<th>Colour</th>
+			<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
+			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?></th>
+			<th>Printer models</th>
+			<th>Operations</th>
+		</tr>
+	</thead>
+	
+	<tbody>
 	
 	<?php
 	foreach($consumables as $c){
@@ -65,9 +69,21 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 	}
 	?>
 	
+	</tbody>
+	
 </table>
 
 </div>
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$("table#consumables").addTableFilter({
+		labelText: "Find consumable:",
+		size: 30
+	});
+	$('#consumables-filtering').focus();
+});
+</script>
 
 <?php
 $tpl->place('footer')

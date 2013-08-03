@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="web/css/printmaster.css" />
 <link rel="stylesheet" href="web/css/print.css" media="print" />
 <link rel="stylesheet" href="web/_boxy/stylesheets/boxy.css" />
-<script src="web/js/jquery-1.4.2.min.js"></script>
-<script src="web/js/picnet.table.filter.min.js"></script>
+<script src="web/js/jquery-1.6.4.min.js"></script>
+<script src="web/js/jquery.table-filter.min.js"></script>
 <script src="web/_boxy/javascripts/jquery.boxy.js"></script>
 <!--[if lt IE 9]>
 <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
