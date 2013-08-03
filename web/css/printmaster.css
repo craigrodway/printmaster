@@ -139,9 +139,14 @@ div#buttoncontainer{
 	text-align: center;
 }
 div#buttoncontainer input{
-	display: inline;
+	display: inline-block;
 	margin: 0 auto 10px auto;
 	text-align: center;
+}
+
+div#buttoncontainer input.con-check {
+	display: none;
+	margin-right: 10px;
 }
 
 .btn_colour_c{ background: #0066B3; }

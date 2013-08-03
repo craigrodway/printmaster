@@ -73,6 +73,15 @@ $('ul.printerlist li a').click(function(){
 			createButton(cnode[i].id, cnode[i].name, cnode[i].colours, cnode[i].qty);
 		}
 		
+		if (i > 1) {
+			var sel_btn = $("<button id='install-selected'>Install Selected</button>");
+			sel_btn.click(installSelected);
+			$("#buttoncontainer").append(sel_btn);
+			$("#buttoncontainer .con-check").show();
+			
+			
+		}
+		
 	} else {
 		
 		// No consumables - inform user
@@ -104,6 +113,7 @@ createButton = function(id, name, colours, qty){
 	}
 	
 	// Create button element
+	var check = $('<input type="checkbox" class="con-check" value="' + id + '">');
 	var btn = $('<input type="button" class="btn btn_colour_' + colour + '" value="' + text + '" consumable="' + id + '">');
 	
 	// Attach event to button click
@@ -118,15 +128,29 @@ createButton = function(id, name, colours, qty){
 	var br = $('<br>');
 	
 	// Append element to container
-	$('#buttoncontainer').append(btn).append(br);
+	$('#buttoncontainer').append(check).append(btn).append(br);
 	
 };
 
 // Event when installing a consumable
 installConsumable = function(e){
 	// Get ID attribute from element and update hidden form element
-	$('input[name=consumable_id]').val(e.attr("consumable"));
+	$('input[type=hidden][name=consumable_id]').val(e.attr("consumable"));
 	// Submit the form
 	$('form#quickinstall').submit();
+}
+
+installSelected = function() {
+	// Get the selected items
+	var $checks = $(this).siblings("input[class=con-check]:checked");
+	var $form = $('form#quickinstall');
+	
+	$checks.each(function(el) {
+		var id = $(this).val();
+		$form.append($("<input>").attr("type", "hidden").attr("name", "consumable_ids[]").val(id));
+	});
+	
+	// Submit the form
+	$form.submit();
 }
 </script>

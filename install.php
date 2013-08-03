@@ -29,6 +29,7 @@ $redirect = fRequest::get('redirect', 'string');
 
 // Get IDs
 $consumable_id = fRequest::get('consumable_id', 'integer?');
+$consumable_ids = fRequest::get('consumable_ids', 'integer[]?');
 $printer_id = fRequest::get('printer_id', 'integer?');
 
 if($action == 'install'){
@@ -39,21 +40,39 @@ if($action == 'install'){
 		
 		// Get objects matching the printer/consumable
 		$printer = new Printer($printer_id);
-		$consumable = new Consumable($consumable_id);
 		
-		// Try to install it
-		$installed = $consumable->installTo($printer);
+		if ( ! empty($consumable_ids))
+		{
+			$errors = 0;
+			
+			foreach ($consumable_ids as $consumable_id)
+			{
+				// Get consumable and try to install it
+				$consumable = new Consumable($consumable_id);
+				if ( ! $consumable->installTo($printer))
+				{
+					$errors++;
+				}
+			}
+			
+			$installed = ($errors === 0);
+			$success = sprintf('%d consumables have been installed in to %s!', (count($consumable_ids) - $errors), $printer->getName());
+		}
+		else
+		{
+			// Get consumable and try to install it
+			$consumable = new Consumable($consumable_id);
+			$installed = $consumable->installTo($printer);
+			$success = sprintf('The consumable %s has been installed in to %s!',
+				$consumable->getName(), $printer->getName());
+		}
 		
 		// Check status of installation
 		if($installed == FALSE){
 			fMessaging::create('error', $redirect, $consumable->err);
 			fURL::redirect($redirect);
 		} else {
-			fMessaging::create('success', $redirect, sprintf(
-				'The consumable %s has been installed in to %s!',
-				$consumable->getName(),
-				$printer->getName()
-			));
+			fMessaging::create('success', $redirect, $success);
 			fURL::redirect($redirect);
 		}
 		
