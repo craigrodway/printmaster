@@ -141,7 +141,8 @@ class Consumable extends fActiveRecord{
 				'id' => $c->id,
 				'name' => $c->name,
 				'colours' => $colours,
-				'qty' => $c->qty
+				'qty' => $c->qty,
+				'cost' => $c->cost,
 			);
 			
 			//{"id": 1, "name": "C9720A", "colour": "c", "qty": 5},
@@ -213,6 +214,7 @@ class Consumable extends fActiveRecord{
 			$e->setPrinterId($printer->getId());
 			$e->setConsumableId($this->getId());
 			$e->setDate(date('Y-m-d H:i:s'));
+			$e->setCost($this->getCost());
 			$e->store();
 			
 		} catch(fExpectedException $e){

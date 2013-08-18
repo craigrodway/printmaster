@@ -12,10 +12,12 @@
 <link rel="stylesheet" href="web/css/printmaster.css" />
 <link rel="stylesheet" href="web/css/print.css" media="print" />
 <link rel="stylesheet" href="web/_boxy/stylesheets/boxy.css" />
+<link rel="stylesheet" href="web/_datepicker/public/css/printmaster.css" />
 <script src="web/js/jquery-1.6.4.min.js"></script>
 <script src="web/js/jquery.fastLiveFilter.js"></script>
 <script src="web/js/jquery.table-filter.min.js"></script>
 <script src="web/_boxy/javascripts/jquery.boxy.js"></script>
+<script src="web/_datepicker/public/javascript/zebra_datepicker.js"></script>
 <!--[if lt IE 9]>
 <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 <style type="text/css">.clear{ zoom: 1; display: block; }</style>
@@ -35,7 +37,7 @@
 				<li><a href="manufacturers.php">Manufacturers</a></li>
 				<li><a href="models.php">Models</a></li>
 				<li><a href="consumables.php">Consumables</a></li>
-				<li><a href="reports.php">Reports</a></li>
+				<li><a href="reports.php?reset">Reports</a></li>
 			</ul>
 		</div>
 		

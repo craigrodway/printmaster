@@ -12,7 +12,7 @@ $tpl->place('header');
 		<table class="form">
 		
 			<tr>
-				<td class="caption"><label for="name">Name</label></td>
+				<td class="caption middle"><label for="name">Name</label></td>
 				<td class="input">
 					<input id="name" type="text" name="name" value="<?php echo $c->getName() ?>" 
 					maxlength="<?php echo $c->inspectName('max_length') ?>" />
@@ -20,11 +20,19 @@ $tpl->place('header');
 			</tr>
 			
 			<tr>
-				<td class="caption"><label for="qty">In stock</label></td>
+				<td class="caption middle"><label for="qty">In stock</label></td>
 				<td class="input">
 					<input type="hidden" name="qty" value="<?php echo $c->getQty() ?>" />
 					<input id="qty" type="text" name="qty" value="<?php echo $c->getQty() ?>" 
 						maxlength="10" size="1" <?php if($action != 'add'){ echo 'disabled="disabled"'; } ?> />
+				</td>
+			</tr>
+			
+			<tr>
+				<td class="caption middle"><label for="cost">Cost each</label></td>
+				<td class="input">
+					<span class="currency"><?php echo CURRENCY ?></span>
+					<input id="cost" type="text" name="cost" value="<?php echo $c->getCost() ?>" maxlength="10" size="10" />
 				</td>
 			</tr>
 		

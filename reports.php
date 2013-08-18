@@ -24,7 +24,9 @@ include_once('inc/init.php');
 
 // Get action from query string
 $action = fRequest::getValid('action', array('list'));
-
+$printer_id = fCRUD::getSearchValue('printer_id');
+$date_from = fCRUD::getSearchValue('date_from');
+$date_to = fCRUD::getSearchValue('date_to');
 
 
 
@@ -35,12 +37,33 @@ if ($action == 'list') {
 	
 	// Set the users to be sortable by name or email, defaulting to name
 	$sort = fCRUD::getSortColumn(array(
-		'events.date', 'models.name', 'printers.name', 'consumables.name'
+		'events.date', 'models.name', 'printers.name', 'consumables.name', 'events.cost'
 	));
+	
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('desc');
+	
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
+
+	// Determine search parameters
+	$sql_where = '';
+
+	if ($printer_id)
+	{
+		$printer = new Printer($printer_id);
+		$sql_where .= ' AND events.printer_id = ' . $db->escape('integer', $printer_id);
+	}
+
+	if ($date_from)
+	{
+		$sql_where .= ' AND DATE(events.date) >= ' . $db->escape('date', $date_from);
+	}
+
+	if ($date_to)
+	{
+		$sql_where .= ' AND DATE(events.date) <= ' . $db->escape('date', $date_to);
+	}
 	
 	// Get recordset object from tables
 	$sql = "SELECT
@@ -55,21 +78,14 @@ if ($action == 'list') {
 			LEFT JOIN printers ON events.printer_id = printers.id
 			LEFT JOIN models ON printers.model_id = models.id
 			LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
-			{where}
+			WHERE 1 = 1
+			$sql_where
 			ORDER BY $sort $dir";
 	
-	// Get potential printer ID
-	$printer_id = fRequest::get('printer_id', 'integer?');
-	
-	if($printer_id == NULL){
-		$sql = str_replace('{where}', '', $sql);
-		$events = $db->query($sql)->asObjects();
-	} else {
-		$sql_where = 'WHERE events.printer_id = %i';
-		$sql = str_replace('{where}', $sql_where, $sql);
-		$events = $db->query($sql, $printer_id)->asObjects();
-		$printer = new Printer($printer_id);
-	}
+	$events = $db->query($sql)->asObjects();
+
+	// Get list of printers for dropdown box
+	$printers = Printer::getSimple($db);
 	
 	// Include page to show table
 	include 'views/reports/index.php';

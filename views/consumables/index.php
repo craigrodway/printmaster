@@ -19,6 +19,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		<tr class="heading">
 			<th>Colour</th>
 			<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
+			<th class="right"><?php echo fCRUD::printSortableColumn('consumables.cost', 'Cost') ?></th>
 			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?></th>
 			<th>Printer models</th>
 			<th>Operations</th>
@@ -40,11 +41,15 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		echo '</td>';
 		
 		echo '<td class="name">' . $c->name . '</td>';
+		
+		echo '<td class="right">' . ($c->cost ? CURRENCY . $c->cost : ''). '</td>';
+
 		$qtycol = Consumable::getQtyStatus($c->qty);
 		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
 #		echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
 
 		echo '<td width="20">' . $c->qty . '</td>';
+		
 		
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
 		printf($bar, $c->qty_percent, $qtycol);

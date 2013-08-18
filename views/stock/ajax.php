@@ -24,9 +24,13 @@
 		<input type="hidden" name="redirect" value="<?php echo $redirect ?>">
 		
 		<label for="qty"><strong>How many in this delivery?</strong></label><br>
-		<input type="number" value="1" name="qty" autocomplete="off" size="3" autofocus>
-		
+		<input type="number" value="1" name="qty" autocomplete="off" size="3" style="width: 90px" autofocus>
 		<br><br>
+
+		<label for="qty"><strong>Unit cost?</strong></label><br>
+		<input type="text" value="<?php echo $c->cost ?>" name="cost" autocomplete="off" style="width: 90px">
+		<br><br>
+
 		<input type="submit" class="btn btn_pos" value="Update">
 
 	</form>

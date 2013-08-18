@@ -27,6 +27,7 @@ include_once('inc/init.php');
 $redirect = fRequest::get('redirect', 'string');
 $consumable_id = fRequest::get('consumable_id', 'integer?');
 $qty = fRequest::get('qty');
+$cost = fRequest::get('cost', 'float?');
 
 // Determine status - show page or update stock
 if(fRequest::isPost() && $consumable_id != NULL){
@@ -37,6 +38,13 @@ if(fRequest::isPost() && $consumable_id != NULL){
 		
 		// Get objects matching the printer/consumable
 		$consumable = new Consumable($consumable_id);
+
+		// Update cost if present
+		if ($cost)
+		{
+			$consumable->setCost($cost);
+			$consumable->store();
+		}
 		
 		// Update consumable
 		$updated = $consumable->increaseStockBy($qty);

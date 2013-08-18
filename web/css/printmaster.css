@@ -64,9 +64,17 @@ p.success{ background: #ABE673;	/*#77BF30;*/ }
 table.list{ width:100%; font-size:90%; }
 table.list tr td, table.list tr th{ padding:6px 4px; vertical-align:middle; }
 table.list tr.heading th{ text-align:left; background:#729FCF; color:#fff; }
+table.list tr.heading th.right,table.list tr td.right { text-align:right; padding-right: 15px;}
 table.list tr.heading th a{ color:#fff; }
 table.list tr td{ border-bottom:1px solid #ccc; }
 table.list tr td.name{ font-weight:bold; font-size:110%; }
+
+table.list .report-total td {
+	font-size: 140%;
+	padding-top: 15px;
+	padding-bottom: 15px;
+	border-bottom: 0;
+}
 
 table.list tr td ul.linkbar{ font-size:90%; }
 
@@ -91,6 +99,7 @@ table.list tr.filters td{ background: #EEEEEC; }
 table.form{ width:100%; font-size:90%; }
 table.form tr td{ padding:8px 4px; }
 table.form tr td.caption{ width:175px; text-align:right; vertical-align:top; }
+table.form tr td.caption.middle{ vertical-align:middle; }
 table.form tr td.caption label{ font-weight:bold; }
 table.form tr td.input label.check{
     display:block;
@@ -224,3 +233,16 @@ ul.printerlist li a:hover, ul.printerlist li a.current{
 	background-color:cornflowerblue;
 	color:#fff;
 }
+
+/* Filter box */
+.filter {
+	background: #E9EDF4;
+	padding: 10px;
+	margin-bottom: 20px;
+}
+
+	.filter label {
+		font-weight: bold;
+		display: block;
+		margin: 0 0 5px 0;
+	}

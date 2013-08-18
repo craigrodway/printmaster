@@ -6,6 +6,9 @@ $status[3] = array('OK', '73D216');			// 3+ OK
 $status[2] = array('Low', 'EDD400');		// 2+ Warning
 $status[0] = array('Critical', 'CC0000');	// 0: Empty - bad.
 
+// Currency
+define('CURRENCY', '&pound;');
+
 
 // Paths and URLs
 define('DOC_ROOT', realpath(dirname(__FILE__) . '/../'));

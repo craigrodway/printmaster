@@ -33,7 +33,7 @@ $action = fRequest::getValid('action', array('list', 'add', 'edit', 'delete'));
 if ($action == 'list') {
 	
 	// Set the users to be sortable by name or email, defaulting to name
-	$sort = fCRUD::getSortColumn(array('consumables.name', 'consumables.qty'));
+	$sort = fCRUD::getSortColumn(array('consumables.name', 'consumables.qty', 'consumables.cost'));
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('asc');
 	// Redirect the user if one of the values was loaded from the session

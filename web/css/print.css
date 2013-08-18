@@ -1,7 +1,8 @@
 .noprint,
 div#header-fullwidth,
 tr.filters,
-ul.linkbar
+ul.linkbar,
+.filter .buttons .btn
 {
 	display: none;
 }
