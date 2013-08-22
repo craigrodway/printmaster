@@ -3,6 +3,9 @@
 See the __General instructions__ section below, and then check the version-specific entries.
 
 
+### 1.2.1 - 22.08.2013
+* Database patch only: Just visit __/printmaster/upgrade.php__ in your browser.
+
 ### 1.2.0 - 18.08.2013
 * New config value: Copy the new "CURRENCY" lines from `inc/config.php` to your own `inc/config.php` file and adjust if needed.
 
