@@ -1,5 +1,8 @@
 # Changelog
 
+### 1.3.0 - 22.08.2013
+* Add Purchase Cost and Purchase Date fields to printers.
+
 ### 1.2.1 - 22.08.2013
 * Fix for issue where costs on consumables and reports would hold max. value of 99.99.
 

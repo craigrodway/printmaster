@@ -72,6 +72,21 @@ $tpl->place('header');
 					maxlength="<?php echo $p->inspectSerial('max_length') ?>" />
 				</td>
 			</tr>
+
+			<tr>
+				<td class="caption middle"><label for="cost">Purchase cost</label></td>
+				<td class="input">
+					<span class="currency"><?php echo CURRENCY ?></span>
+					<input id="cost" type="text" name="cost" value="<?php echo $p->getCost() ?>" maxlength="10" size="10" />
+				</td>
+			</tr>
+
+			<tr>
+				<td class="caption middle"><label for="cost">Purchase date</label></td>
+				<td class="input">
+					<input type="text" class="text-input datepicker" name="purchase_date" value="<?php echo $p->getPurchaseDate() ?>" maxlength="10" size="15">
+				</td>
+			</tr>
 			
 			<tr>
 				<td class="caption"><label for="notes">Notes</label></td>
@@ -97,6 +112,12 @@ $tpl->place('header');
 	</form>
 	
 </div>
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$(".datepicker").Zebra_DatePicker({ direction: false });
+});
+</script>
 
 <?php
 $tpl->place('footer');
