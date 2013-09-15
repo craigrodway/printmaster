@@ -43,6 +43,7 @@ Installation
 4. Create a new username and database in MySQL
 5. Import the *printmaster.sql* file into the new database
 6. Edit the *$db* line in *inc/init.php* to reflect your database details
+7. Access **upgrade.php** in a browser to update the database to the latest version. E.g. **http://server/printmaster/upgrade.php**
 7. Invent your own security (.htaccess, integrated Windows authentication...)
 
 
