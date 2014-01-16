@@ -75,6 +75,7 @@ foreach ($patch_files as $file)
 		$contents = $file->read();
 		try {
 			$db->query($contents);
+			$db->query("INSERT INTO patch_history SET num = %i ON DUPLICATE KEY UPDATE num = VALUES(num);", $patch_num);
 			echo "OK!<br>";
 		} catch (fException $e) {
 			echo "Error: " . $e->getMessage() . "<br>";
