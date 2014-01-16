@@ -20,7 +20,7 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 
 
 // Include initialisation file
-include_once('inc/init.php');
+include_once('inc/core.php');
 
 // Get action from query string
 $action = fRequest::getValid('action', array('list', 'add', 'edit', 'delete'));
@@ -32,21 +32,21 @@ $action = fRequest::getValid('action', array('list', 'add', 'edit', 'delete'));
  * Default action - show list of printers
  */
 if ($action == 'list') {
-	
+
 	// Set the users to be sortable by name or email, defaulting to name
 	$sort = fCRUD::getSortColumn(array(
-		'printers.name', 'models.name', 'printers.ipaddress', 
+		'printers.name', 'models.name', 'printers.ipaddress',
 		'printers.server', 'printers.location', 'models.colour'
 	));
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('asc');
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
-	
+
 	// Get recordset object from tables
-	$sql = "SELECT 
-				printers.*, 
-				manufacturers.name AS mfr_name, 
+	$sql = "SELECT
+				printers.*,
+				manufacturers.name AS mfr_name,
 				models.name AS model_name,
 				models.colour,
 				GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
@@ -61,17 +61,17 @@ if ($action == 'list') {
 			GROUP BY printers.id
 			ORDER BY $sort $dir";
 	$printers = $db->query($sql)->asObjects();
-	
+
 	#$consumables = fRecordSet::build('Consumable', NULL, array($sort => $dir));
-	
-	
-	
+
+
+
 	#$models = fRecordSet::build('Model', NULL, array('name' => 'asc'));
 	#$models->precreateManufacturers();
-	
+
 	// Include page to show table
 	include 'views/printers/index.php';
-	
+
 }
 
 
@@ -81,42 +81,42 @@ if ($action == 'list') {
  * Add a new printer
  */
 if ($action == 'add') {
-	
-	// Create new 
+
+	// Create new
 	$p = new Printer();
-	
+
 	// Try to get form values and save object if requested via POST method
 	if (fRequest::isPost()) {
-		
+
 		try{
-		
+
 			// Populate and save printer object from form values
 			$p->populate();
 			$p->store();
-			
+
 			// Set status message
 			fMessaging::create('affected', fURL::get(), $p->getName());
 			fMessaging::create('success', fURL::get(), 'The printer ' . $p->getName() . ' was successfully added.');
-			
+
 			// Redirect
 			fURL::redirect(fURL::get());
-			
+
 		} catch (fValidationException $e) {
 			fMessaging::create('error', fURL::get(), $e->getMessage());
 		} catch(fExpectedException $e) {
 			fMessaging::create('error', fURL::get(), $e->getMessage());
-		}	
-		
+		}
+
 	}
-	
+
 	// Get manufacturers also for drop-down box
 	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-	
+
 	// Get list of models
 	$models = Model::getSimple($db);
-	
+
 	include 'views/printers/addedit.php';
-	
+
 }
 
 
@@ -126,47 +126,47 @@ if ($action == 'add') {
  * Edit a printer
  */
 if ($action == 'edit') {
-	
+
 	// Get ID
 	$id = fRequest::get('id', 'integer');
-	
+
 	try {
-		
+
 		// Get consumable via ID
 		$p = new Printer($id);
-		
+
 		if (fRequest::isPost()) {
-			
+
 			// Update printer object from POST data and save
 			$p->populate();
 			$p->store();
-			
+
 			// Messaging
 			fMessaging::create('affected', fURL::get(), $p->getId());
 			fMessaging::create('success', fURL::get(), 'The printer ' . $p->getName() . ' was successfully updated.');
-			fURL::redirect(fURL::get());	
-			
+			fURL::redirect(fURL::get());
+
 		}
-	
+
 	} catch (fNotFoundException $e) {
-		
-		fMessaging::create('error', fURL::get(), 'The consumable requested, ID ' . $id . ', could not be found.');	
+
+		fMessaging::create('error', fURL::get(), 'The consumable requested, ID ' . $id . ', could not be found.');
 		fURL::redirect(fURL::get());
-		
+
 	} catch (fExpectedException $e) {
-		
-		fMessaging::create('error', fURL::get(), $e->getMessage());	
-		
+
+		fMessaging::create('error', fURL::get(), $e->getMessage());
+
 	}
-	
+
 	// Get manufacturers also for drop-down box
 	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-	
+
 	// Get list of models
 	$models = Model::getSimple($db);
-	
+
 	include 'views/printers/addedit.php';
-	
+
 }
 
 
@@ -177,35 +177,35 @@ if($action == 'delete'){
 
 	// Get ID
 	$id = fRequest::get('id', 'integer');
-	
+
 	try {
-		
+
 		$p = new Printer($id);
-		
+
 		if (fRequest::isPost()) {
-			
+
 			$p->delete();
-			
+
 			fMessaging::create('success', fURL::get(), 'The printer ' . $p->getName() . ' was successfully deleted.');
 			fURL::redirect(fURL::get());
-		
+
 		}
-	
+
 	} catch(fNotFoundException $e) {
-		
+
 		fMessaging::create('error', fURL::get(), 'The printer requested, ID ' . $id . ', could not be found.');
 		fURL::redirect($manage_url);
-	
+
 	} catch(fExpectedException $e) {
-		
-		fMessaging::create('error', fURL::get(), $e->getMessage());	
-		
+
+		fMessaging::create('error', fURL::get(), $e->getMessage());
+
 	} catch(fSQLException $e) {
-		
+
 		fMessaging::create('error', fURL::get(), 'Database error: ' . $e->getMessage());
-		
+
 	}
-	
+
 	include 'views/printers/delete.php';
 
 }

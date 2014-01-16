@@ -27,7 +27,7 @@ When it exists, it executes the required patch scripts in the ./db folder.
 
 
 // Include initialisation file
-include_once('inc/init.php');
+include_once('inc/core.php');
 
 // Get DB schema so we can find out if the table exists.
 $schema = new fSchema($db);

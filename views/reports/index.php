@@ -58,10 +58,12 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			<th><?php echo fCRUD::printSortableColumn('printers.name', 'Printer') ?></th>
 			<th><?php echo fCRUD::printSortableColumn('models.name', 'Model') ?></th>
 			<th filter="false"><?php echo fCRUD::printSortableColumn('events.date', 'Date') ?></th>
+			<?php if (feature('costs')): ?>
 			<th class="right"><?php echo fCRUD::printSortableColumn('events.cost', 'Cost') ?></th>
+			<?php endif; ?>
 		</tr>
 		</thead>
-		
+
 		<tbody>
 		<?php
 
@@ -74,54 +76,57 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			{
 				$total_cost += $e->cost;
 			}
-			
+
 			echo '<tr>';
-			
+
 			/* $img = ($p->colour == 1) ? 'colour.png' : 'mono.png';
 			$txt = ($p->colour == 1) ? 'C' : 'M';
 			echo '<td style="width:48px;text-align:center;">';
 			echo '<span style="display:none;">' . $txt . '</span>';
 			echo '<img src="web/img/' . $img . '" width="16" height="16" />';
 			echo '</td>'; */
-			
+
 			echo '<td class="col" width="80">';
 			if($e->col_c){ printf($colour, '0066B3'); }
 			if($e->col_y){ printf($colour, 'FFCC00'); }
 			if($e->col_m){ printf($colour, 'CC0099'); }
 			if($e->col_k){ printf($colour, '000'); }
 			echo '</td>';
-			
+
 			printf('<td><strong><a href="consumables.php?action=edit&id=%d">%s</a></strong>',
 				$e->consumable_id, $e->consumable_name
 			);
-			
+
 			printf('<td><strong><a href="%s">%s</a></strong></td>',
 				'printers.php?action=edit&id=' . $e->printer_id,
 				$e->printer_name
 			);
-			
+
 			echo '<td>' . $e->model . '</td>';
-			
+
 			$date = date('D jS F Y, H:i', strtotime($e->date));
 			$date = preg_replace('/(\d+)(st|nd|rd|th)/', '$1<sup>$2</sup>', $date);
 			echo '<td>' . $date . '</td>';
-			
-			echo '<td class="right">' . ($e->cost ? CURRENCY . $e->cost : '') . '</td>';
-			
+
+			if (feature('costs'))
+			{
+				echo '<td class="right">' . ($e->cost ? config_item('currency') . $e->cost : '') . '</td>';
+			}
+
 			echo '</tr>';
 		}
 		?>
 		</tbody>
 
-		<?php if ($total_cost > 0): ?>
+		<?php if (feature('costs') && $total_cost > 0): ?>
 		<tfoot>
 			<tr class="report-total">
 				<td colspan="5" class="right"><strong>Total:</strong></td>
-				<td class="right"><?php echo CURRENCY . number_format($total_cost, 2) ?></td>
+				<td class="right"><?php echo config_item('currency') . number_format($total_cost, 2) ?></td>
 			</tr>
 		</tfoot>
 		<?php endif; ?>
-		
+
 	</table>
 
 </div>

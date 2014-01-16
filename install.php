@@ -20,7 +20,7 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 
 
 // Include initialisation file
-include_once('inc/init.php');
+include_once('inc/core.php');
 
 // Get action from query string
 $action = fRequest::getValid('action', array('install'));
@@ -33,18 +33,18 @@ $consumable_ids = fRequest::get('consumable_ids', 'integer[]?');
 $printer_id = fRequest::get('printer_id', 'integer?');
 
 if($action == 'install'){
-	
+
 	// Install consumable into printer
-	
+
 	try{
-		
+
 		// Get objects matching the printer/consumable
 		$printer = new Printer($printer_id);
-		
+
 		if ( ! empty($consumable_ids))
 		{
 			$errors = 0;
-			
+
 			foreach ($consumable_ids as $consumable_id)
 			{
 				// Get consumable and try to install it
@@ -54,7 +54,7 @@ if($action == 'install'){
 					$errors++;
 				}
 			}
-			
+
 			$installed = ($errors === 0);
 			$success = sprintf('%d consumables have been installed in to %s!', (count($consumable_ids) - $errors), $printer->getName());
 		}
@@ -66,7 +66,7 @@ if($action == 'install'){
 			$success = sprintf('The consumable %s has been installed in to %s!',
 				$consumable->getName(), $printer->getName());
 		}
-		
+
 		// Check status of installation
 		if($installed == FALSE){
 			fMessaging::create('error', $redirect, $consumable->err);
@@ -75,11 +75,11 @@ if($action == 'install'){
 			fMessaging::create('success', $redirect, $success);
 			fURL::redirect($redirect);
 		}
-		
+
 	} catch (fNotFoundException $e) {
-		
-		fMessaging::create('error', $redirect, 'The requested object with ID ' . $id . ', could not be found.');	
+
+		fMessaging::create('error', $redirect, 'The requested object with ID ' . $id . ', could not be found.');
 		fURL::redirect($redirect);
-	
+
 	}
 }

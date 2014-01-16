@@ -19,7 +19,7 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
-include_once('inc/init.php');
+include_once('inc/core.php');
 
 // Do not show page title beneath menu (two columns have own titles)
 $tpl->set('hidetitle', TRUE);
@@ -36,8 +36,8 @@ $tpl->place('header');
  */
 
 // Get consumables
-$sql = "SELECT 
-		consumables.*, 
+$sql = "SELECT
+		consumables.*,
 		( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
 		GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model
 		FROM consumables
@@ -66,13 +66,13 @@ $printers = Printer::getSimple($db);
 $models_consumables = Consumable::getForModels($db);
 $models_consumables_json = fJSON::encode($models_consumables);
 ?>
-	
+
 	<br />
-	
+
 	<div class="grid_5 suffix_1">
 		<?php include 'views/home/quickadd.php'; ?>
 	</div>
-	
+
 	<div class="grid_6">
 		<?php include 'views/home/stock.php'; ?>
 	</div>

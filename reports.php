@@ -20,7 +20,7 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 
 
 // Include initialisation file
-include_once('inc/init.php');
+include_once('inc/core.php');
 
 // Get action from query string
 $action = fRequest::getValid('action', array('list'));
@@ -34,15 +34,15 @@ $date_to = fCRUD::getSearchValue('date_to');
  * Default action - show report of consumable installation
  */
 if ($action == 'list') {
-	
+
 	// Set the users to be sortable by name or email, defaulting to name
 	$sort = fCRUD::getSortColumn(array(
 		'events.date', 'models.name', 'printers.name', 'consumables.name', 'events.cost'
 	));
-	
+
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('desc');
-	
+
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
 
@@ -64,14 +64,14 @@ if ($action == 'list') {
 	{
 		$sql_where .= ' AND DATE(events.date) <= ' . $db->escape('date', $date_to);
 	}
-	
+
 	// Get recordset object from tables
 	$sql = "SELECT
 				CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) AS model,
 				printers.name AS printer_name,
 				printers.ipaddress,
 				consumables.name AS consumable_name,
-				consumables.col_c, consumables.col_y, consumables.col_m, consumables.col_k, 
+				consumables.col_c, consumables.col_y, consumables.col_m, consumables.col_k,
 				events.*
 			FROM events
 			LEFT JOIN consumables ON events.consumable_id = consumables.id
@@ -81,15 +81,15 @@ if ($action == 'list') {
 			WHERE 1 = 1
 			$sql_where
 			ORDER BY $sort $dir";
-	
+
 	$events = $db->query($sql)->asObjects();
 
 	// Get list of printers for dropdown box
 	$printers = Printer::getSimple($db);
-	
+
 	// Include page to show table
 	include 'views/reports/index.php';
-	
+
 }
 
 

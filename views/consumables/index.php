@@ -19,45 +19,50 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		<tr class="heading">
 			<th>Colour</th>
 			<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
+			<?php if (feature('costs')): ?>
 			<th class="right"><?php echo fCRUD::printSortableColumn('consumables.cost', 'Cost') ?></th>
+			<?php endif; ?>
 			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?></th>
 			<th>Printer models</th>
 			<th>Operations</th>
 		</tr>
 	</thead>
-	
+
 	<tbody>
-	
+
 	<?php
 	foreach($consumables as $c){
-		
+
 		echo '<tr>';
-		
+
 		echo '<td style="width:100px;text-align:left;" class="col">';
 		if($c->col_c){ printf($colour, '0066B3'); }
 		if($c->col_y){ printf($colour, 'FFCC00'); }
 		if($c->col_m){ printf($colour, 'CC0099'); }
 		if($c->col_k){ printf($colour, '000'); }
 		echo '</td>';
-		
+
 		echo '<td class="name">' . $c->name . '</td>';
-		
-		echo '<td class="right">' . ($c->cost ? CURRENCY . $c->cost : ''). '</td>';
+
+		if (feature('costs'))
+		{
+			echo '<td class="right">' . ($c->cost ? config_item('currency') . $c->cost : ''). '</td>';
+		}
 
 		$qtycol = Consumable::getQtyStatus($c->qty);
 		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
 #		echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
 
 		echo '<td width="20">' . $c->qty . '</td>';
-		
-		
+
+
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
 		printf($bar, $c->qty_percent, $qtycol);
-		
-		
-		
+
+
+
 		echo '<td>' . $c->model . '</td>';
-		
+
 		echo '<td>';
 		unset($actions);
 		$actions[] = array('consumables.php?action=edit&id=' . $c->id, 'Edit', 'edit.png');
@@ -69,13 +74,13 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		$tpl->set('menuitems', $actions);
 		$tpl->place('menu');
 		echo '</td>';
-		
+
 		echo '</tr>';
 	}
 	?>
-	
+
 	</tbody>
-	
+
 </table>
 
 </div>
