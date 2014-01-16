@@ -1,0 +1,1 @@
+ALTER TABLE `models` CHANGE `name` `name` varchar(128) COLLATE 'utf8_unicode_ci' NOT NULL COMMENT 'Name of printer model' AFTER `manufacturer_id`;
