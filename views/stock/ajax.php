@@ -1,4 +1,4 @@
-<div style="width: 320px;">
+<div id="consumable_stock_add" class="dialog">
 
 	<h3 style="margin-bottom: 4px">New consumable stock for: <?php echo $c->name ?></h3>
 
