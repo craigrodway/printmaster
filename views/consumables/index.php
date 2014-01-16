@@ -22,7 +22,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			<?php if (feature('costs')): ?>
 			<th class="right"><?php echo fCRUD::printSortableColumn('consumables.cost', 'Cost') ?></th>
 			<?php endif; ?>
-			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?></th>
+			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?> <span class="js-qty-total"></span></th>
 			<th>Printer models</th>
 			<th>Operations</th>
 		</tr>
@@ -53,7 +53,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
 #		echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
 
-		echo '<td width="20">' . $c->qty . '</td>';
+		echo '<td width="20"><span class="js-consumable-qty">' . $c->qty . '</span></td>';
 
 
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
@@ -86,12 +86,28 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 </div>
 
 <script type="text/javascript">
+
+function update_qty_total() {
+	var total = 0;
+
+	$(".js-consumable-qty:visible").each(function() {
+		total = total + parseInt($(this).text());
+	});
+
+	$(".js-qty-total").text(" (" + total + ")");
+}
+
 $(document).ready(function(){
 	$("table#consumables").addTableFilter({
 		labelText: "Find consumable:",
 		size: 30
+	}).on("filtered", function() {
+		update_qty_total();
 	});
+
 	$('#consumables-filtering').focus();
+
+	update_qty_total();
 });
 </script>
 
