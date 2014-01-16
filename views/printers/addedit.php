@@ -100,11 +100,14 @@ $tpl->place('header');
 			<tr>
 				<td>&nbsp;</td>
 				<td>
-					<input type="submit" class="btn btn_pos"
-					value="<?php echo ($action == 'add') ? 'Add' : 'Save'; ?>" />
+					<button type="submit" name="next" class="btn btn_pos" value="index"><?php echo ($action == 'add') ? 'Add' : 'Save'; ?></button>
+
+					<?php if ($action === 'add'): ?>
+					<button type="submit" name="next" class="btn btn_misc" value="add">Add new + another</button>
+					<?php endif; ?>
 
 					<?php if($action == 'edit'): ?>
-					<a href="printers.php?action=delete&id=<?php echo $p->getId() ?>" class="btn btn_neg">Delete</a>
+					<a href="printers.php?action=delete&amp;id=<?php echo $p->getId() ?>" class="btn btn_neg">Delete</a>
 					<?php endif; ?>
 				</td>
 			</tr>
@@ -118,6 +121,7 @@ $tpl->place('header');
 <script type="text/javascript">
 $(document).ready(function(){
 	$(".datepicker").Zebra_DatePicker({ direction: false });
+	$("input[name='name']").focus();
 });
 </script>
 

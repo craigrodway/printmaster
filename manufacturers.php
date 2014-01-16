@@ -64,7 +64,15 @@ if ($action == 'add') {
 			fMessaging::create('success', fURL::get(), 'The manufacturer ' . $m->getName() . ' was successfully added.');
 
 			// Redirect
-			fURL::redirect(fURL::get());
+			$next = fRequest::getValid('next', array('index', 'add'));
+			if ($next === 'index')
+			{
+				fURL::redirect(fURL::get());
+			}
+			elseif ($next === 'add')
+			{
+				fURL::redirect(fURL::get() . '?action=add');
+			}
 
 		} catch(fExpectedException $e) {
 			fMessaging::create('error', fURL::get(), $e->getMessage());

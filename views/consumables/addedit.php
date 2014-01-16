@@ -87,8 +87,11 @@ $tpl->place('header');
 			<tr>
 				<td>&nbsp;</td>
 				<td>
-					<input type="submit" class="btn btn_pos"
-					value="<?php echo ($action == 'add') ? 'Add' : 'Save'; ?>" />
+					<button type="submit" name="next" class="btn btn_pos" value="index"><?php echo ($action == 'add') ? 'Add' : 'Save'; ?></button>
+
+					<?php if ($action === 'add'): ?>
+					<button type="submit" name="next" class="btn btn_misc" value="add">Add new + another</button>
+					<?php endif; ?>
 				</td>
 			</tr>
 
@@ -97,6 +100,12 @@ $tpl->place('header');
 	</form>
 
 </div>
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$("input[name='name']").focus();
+});
+</script>
 
 <?php
 $tpl->place('footer');

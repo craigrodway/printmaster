@@ -78,8 +78,19 @@ if ($action == 'add') {
 			fMessaging::create('affected', fURL::get(), $m->getName());
 			fMessaging::create('success', fURL::get(), 'The model ' . $m->getName() . ' was successfully added.');
 
+			// Be helpful and remember the manufacturer
+			fMessaging::create('manufacturer_id', 'models/add', fRequest::get('manufacturer_id', 'integer', 0));
+
 			// Redirect
-			fURL::redirect(fURL::get());
+			$next = fRequest::getValid('next', array('index', 'add'));
+			if ($next === 'index')
+			{
+				fURL::redirect(fURL::get());
+			}
+			elseif ($next === 'add')
+			{
+				fURL::redirect(fURL::get() . '?action=add');
+			}
 
 		} catch(fExpectedException $e) {
 			fMessaging::create('error', fURL::get(), $e->getMessage());
