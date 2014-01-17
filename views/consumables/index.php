@@ -24,6 +24,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			<?php endif; ?>
 			<th colspan="2"><?php echo fCRUD::printSortableColumn('consumables.qty', 'Quantity') ?> <span class="js-qty-total"></span></th>
 			<th>Printer models</th>
+			<th>Printers</th>
 			<th>Operations</th>
 		</tr>
 	</thead>
@@ -51,17 +52,16 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 		$qtycol = Consumable::getQtyStatus($c->qty);
 		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
-#		echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
+		//echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
 
 		echo '<td width="20"><span class="js-consumable-qty">' . $c->qty . '</span></td>';
-
 
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
 		printf($bar, $c->qty_percent, $qtycol);
 
-
-
 		echo '<td>' . $c->model . '</td>';
+
+		echo '<td>' . $c->printer_count . '</td>';
 
 		echo '<td>';
 		unset($actions);

@@ -41,15 +41,29 @@ if ($action == 'list') {
 
 	// Get recordset object from tables
 	$sql = "SELECT
-			consumables.*,
-			( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
-			GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model
-			FROM consumables
-			LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
-			LEFT JOIN models ON consumables_models.model_id = models.id
-			LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
-			GROUP BY consumables.id
-			ORDER BY $sort $dir";
+				consumables.*,
+				( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
+				GROUP_CONCAT(DISTINCT CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
+				COUNT(printers.id) AS printer_count
+			FROM
+				consumables
+			LEFT JOIN
+				consumables_models
+				ON consumables.id = consumables_models.consumable_id
+			LEFT JOIN
+				models
+				ON consumables_models.model_id = models.id
+			LEFT JOIN
+				manufacturers
+				ON models.manufacturer_id = manufacturers.id
+			LEFT JOIN
+				printers
+				ON consumables_models.model_id = printers.model_id
+			GROUP BY
+				consumables.id
+			ORDER BY
+				$sort $dir";
+
 	$consumables = $db->query($sql)->asObjects();
 
 	#$consumables = fRecordSet::build('Consumable', NULL, array($sort => $dir));
