@@ -34,17 +34,31 @@ $action = fRequest::getValid('action', array('list', 'add', 'edit', 'delete'));
 if ($action == 'list') {
 
 	// Set the users to be sortable by name or email, defaulting to name
-	$sort = fCRUD::getSortColumn(array('models.name', 'models.colour', 'manufacturers.name'));
+	$sort = fCRUD::getSortColumn(array('models.name', 'models.colour', 'manufacturers.name', 'printer_count'));
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('asc');
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
 
 	// Get recordset object from table, ordered by name
-	$models = $db->query("SELECT models.*, manufacturers.name AS mfr_name FROM models
-		LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
-		ORDER BY $sort $dir"
-	)->asObjects();
+	$sql = "SELECT
+				models.*,
+				manufacturers.name AS mfr_name,
+				COUNT(printers.id) AS printer_count
+			FROM
+				models
+			LEFT JOIN
+				manufacturers
+				ON models.manufacturer_id = manufacturers.id
+			LEFT JOIN
+				printers
+				ON printers.model_id = models.id
+			GROUP BY
+				models.id
+			ORDER BY
+				$sort $dir";
+
+	$models = $db->query($sql)->asObjects();
 
 
 	#$models = fRecordSet::build('Model', NULL, array('name' => 'asc'));

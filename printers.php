@@ -24,6 +24,7 @@ include_once('inc/core.php');
 
 // Get action from query string
 $action = fRequest::getValid('action', array('list', 'add', 'edit', 'delete'));
+$model_id = fRequest::get('model_id', 'integer');
 
 
 
@@ -43,6 +44,14 @@ if ($action == 'list') {
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
 
+	// Filter
+	$where = NULL;
+	if ($model_id)
+	{
+		// Filter by model ID
+		$where = ' AND printers.model_id = %i ';
+	}
+
 	// Get recordset object from tables
 	$sql = "SELECT
 				printers.*,
@@ -58,9 +67,12 @@ if ($action == 'list') {
 			FROM printers
 			LEFT JOIN models ON printers.model_id = models.id
 			LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
+			WHERE 1 = 1
+			$where
 			GROUP BY printers.id
 			ORDER BY $sort $dir";
-	$printers = $db->query($sql)->asObjects();
+
+	$printers = $db->query($sql, $model_id)->asObjects();
 
 	#$consumables = fRecordSet::build('Consumable', NULL, array($sort => $dir));
 
