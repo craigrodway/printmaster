@@ -38,6 +38,19 @@ $tpl->place('header');
 			</tr>
 			<?php endif; ?>
 
+			<?php if (feature('chargeback')): ?>
+			<input type="hidden" name="chargeback" value="0" />
+			<tr>
+				<td class="caption middle"><label for="chargeback">Chargeback</label></td>
+				<td class="input">
+					<label class="check">
+						<input type="checkbox" id="chargeback" name="chargeback" value="1" <?php fHTML::showChecked($c->getChargeback(), 1) ?> />
+						Yes
+					</label>
+				</td>
+			</tr>
+			<?php endif; ?>
+
 			<tr>
 				<td class="caption"><label>For printer models</label></td>
 				<td class="input">

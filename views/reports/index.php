@@ -58,7 +58,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			<th><?php echo fCRUD::printSortableColumn('printers.name', 'Printer') ?></th>
 			<th><?php echo fCRUD::printSortableColumn('models.name', 'Model') ?></th>
 			<th filter="false"><?php echo fCRUD::printSortableColumn('events.date', 'Date') ?></th>
-			<?php if (feature('costs')): ?>
+			<?php if (feature('costs') || feature('chargeback')): ?>
 			<th class="right"><?php echo fCRUD::printSortableColumn('events.cost', 'Cost') ?></th>
 			<?php endif; ?>
 		</tr>
@@ -108,9 +108,17 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			$date = preg_replace('/(\d+)(st|nd|rd|th)/', '$1<sup>$2</sup>', $date);
 			echo '<td>' . $date . '</td>';
 
-			if (feature('costs'))
+			if (feature('costs') || feature('chargeback'))
 			{
-				echo '<td class="right">' . ($e->cost ? config_item('currency') . $e->cost : '') . '</td>';
+				echo '<td class="consumable_cost_col right">';
+
+				if (feature('chargeback'))
+				{
+					echo ($e->chargeback == 1 ? '<img src="web/img/money.png" width="16" height="16" alt="Chargeback" class="chargeback_img" />' : '&nbsp;');
+				}
+
+				echo ($e->cost ? '<span class="consumable_cost_value">' . config_item('currency') . $e->cost . '</span>' : '');
+				echo '</td>';
 			}
 
 			echo '</tr>';

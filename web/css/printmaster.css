@@ -81,6 +81,16 @@ table.list tr td ul.linkbar{ font-size:90%; }
 table.list tr.filters td input, table.list tr.filters td select{ font-size: 90%; padding:0; }
 table.list tr.filters td{ background: #EEEEEC; }
 
+.consumable_cost_col,
+.chargeback_img {
+	vertical-align: middle;
+}
+
+.consumable_cost_value {
+	margin-left: 5px;
+}
+
+
 /* Table Filter */
 
 .formTableFilter label {

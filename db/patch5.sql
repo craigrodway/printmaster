@@ -1,0 +1,1 @@
+ALTER TABLE `consumables` ADD `chargeback` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT 'Consumable chargeback' AFTER `cost`;

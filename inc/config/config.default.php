@@ -42,6 +42,12 @@ $config->debug = FALSE;
 
 
 /**
- * Features to enable.
+ * Features to enable by default.
+ *
+ * To override, copy this section to your own config.php file, and set the appropriate value to true or false.
+ *
+ * costs: Consumable and printer costs
+ * chargeback: Consumable chargeback option (Yes/No)
  */
-$config->features->costs = FALSE;
+$config->features->costs = TRUE;
+$config->features->chargeback = TRUE;

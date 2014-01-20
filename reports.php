@@ -72,6 +72,7 @@ if ($action == 'list') {
 				printers.ipaddress,
 				consumables.name AS consumable_name,
 				consumables.col_c, consumables.col_y, consumables.col_m, consumables.col_k,
+				consumables.chargeback,
 				events.*
 			FROM events
 			LEFT JOIN consumables ON events.consumable_id = consumables.id
