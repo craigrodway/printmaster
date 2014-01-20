@@ -70,6 +70,24 @@ $tpl->place('header');
 				</td>
 			</tr>
 
+			<?php if (feature('consumable_types')): ?>
+			<tr>
+				<td class="caption"><label>Types</label></td>
+				<td class="input">
+				<?php $c_types = $c->buildTags(); ?>
+				<?php foreach($types as $type): ?>
+					<label class="check">
+						<input type="checkbox"
+							id="<?php echo $type->getId() ?>"
+							name="tags::id[]"
+							value="<?php echo $type->getId() ?>"
+							<?php echo ($c_types->contains($type) ? 'checked="checked"' : '') ?> />
+						<?php echo $type->getTitle() ?></label>
+				<?php endforeach; ?>
+				</td>
+			</tr>
+			<?php endif; ?>
+
 			<tr>
 				<td class="caption"><label for="colour">Colours</label></td>
 				<td class="input">

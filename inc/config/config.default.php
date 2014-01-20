@@ -48,6 +48,8 @@ $config->debug = FALSE;
  *
  * costs: Consumable and printer costs
  * chargeback: Consumable chargeback option (Yes/No)
+ * consumable_types: Consumable types
  */
 $config->features->costs = TRUE;
 $config->features->chargeback = TRUE;
+$config->features->consumable_types = TRUE;

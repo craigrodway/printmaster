@@ -139,6 +139,12 @@ if ($action == 'add') {
 	// Get list of models
 	$models = Model::getSimple($db);
 
+	// Get types
+	if (feature('consumable_types'))
+	{
+		$types = Tag::get_by_type('consumable_type');
+	}
+
 	include 'views/consumables/addedit.php';
 
 }
@@ -175,6 +181,7 @@ if ($action == 'edit') {
 			// Update consumable object from POST data and save
 			$c->populate();
 			$c->linkModels();
+			$c->linkTags();
 			$c->store();
 
 			// Messaging
@@ -200,6 +207,12 @@ if ($action == 'edit') {
 
 	// Get list of models
 	$models = Model::getSimple($db);
+
+	// Get types
+	if (feature('consumable_types'))
+	{
+		$types = Tag::get_by_type('consumable_type');
+	}
 
 	include 'views/consumables/addedit.php';
 
