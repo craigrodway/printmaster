@@ -26,8 +26,8 @@ $config->currency = '&pound;';
 /**
  * Session configuration
  *
- * session_save_path		Path to the folder where session files are saved
- * session_length		Length of active sessions
+ * session_save_path: Path to the folder where session files are saved
+ * session_length: Length of active sessions
  */
 $config->session_path = DOC_ROOT . '/session';
 $config->session_length = '1 hour';
