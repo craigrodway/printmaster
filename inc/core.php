@@ -24,6 +24,8 @@ Core initialisation script to be included on all pages.
 Sets up DB, paths etc.
 */
 
+// PrintMaster version
+define('VERSION', '1.4.0');
 
 // Do a check to see which init method we're using.
 if (file_exists(dirname(__FILE__) . '/init.php'))
