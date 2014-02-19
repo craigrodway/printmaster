@@ -6,6 +6,7 @@ CREATE TABLE `tags` (
 
 ALTER TABLE `tags` ADD INDEX `id_type` (`id`, `type`);
 
+
 CREATE TABLE `consumables_tags` (
   `consumable_id` int(10) unsigned NOT NULL,
   `tag_id` int(11) unsigned NOT NULL,
@@ -18,5 +19,5 @@ ALTER TABLE `consumables_tags` ADD PRIMARY KEY `consumable_id_tag_id` (`consumab
 INSERT INTO `tags` (`id`, `title`, `type`) VALUES
 (1,	'OEM',	'consumable_type'),
 (2,	'Remanufactured',	'consumable_type'),
-(3,	'Compatible',	'consumable_type');
+(3,	'Compatible',	'consumable_type'),
 (4,	'Speciality',	'consumable_type');
