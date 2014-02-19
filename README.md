@@ -1,7 +1,7 @@
 PrintMaster
 ===========
 
-PrintMaster is a quick and easy-to-use web-based printer and consumable management system for 
+PrintMaster is a quick and easy-to-use web-based printer and consumable management system for
 IT departments.
 
 Licensed under GPLv3.
@@ -34,17 +34,18 @@ Requirements
 * MySQL
 
 
-Installation
-------------
+Installation (1.4.0+)
+---------------------
 
 1. Create directory on webserver to store files (configure as virtual host or subdir)
-2. Copy all Print Master files to the folder you just created
-3. Create a new directory called **session** where you extracted the files and make it writeable
+2. Copy all PrintMaster files to the folder you just created
+3. Change the permissions on the `session` folder to be writeable
 4. Create a new username and database in MySQL
-5. Import the *printmaster.sql* file into the new database
-6. Edit the *$db* line in *inc/init.php* to reflect your database details
-7. Access **upgrade.php** in a browser to update the database to the latest version. E.g. **http://server/printmaster/upgrade.php**
-7. Invent your own security (.htaccess, integrated Windows authentication...)
+5. Import the `printmaster.sql` file into the new database
+6. Copy `inc/config/config.default.php` to `inc/config/config.php`.
+7. Edit `inc/config/config.php` and add your database details.
+8. Access **upgrade.php** in a browser to update the database to the latest version. E.g. **http://server/printmaster/upgrade.php**
+9. Invent your own security (.htaccess, integrated Windows authentication...)
 
 
 Getting started
@@ -59,8 +60,4 @@ Getting started
 TODO
 ----
 
-* Tidy up some miscellaneous bits of code
-* Add option on Printer list to install a consumable
-* Allow bulk updating of consumable stock
-* Stock levels (OK, Low, Critical) configurable at consumable level, not global
-* SNMP for printers?
+Development takes place on the **[PrintMaster Trello board](https://trello.com/b/5mErSQXR/printmaster)**.

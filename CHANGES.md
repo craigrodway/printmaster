@@ -1,5 +1,15 @@
 # Changelog
 
+### 1.4.0 - 19.02.2013
+* Fix model name character length
+* Update to config methods (please see UPGRADE for instructions)
+* Add grand total for consumable stock
+* Add "Save and add new" feature
+* Add printer count to models list
+* Add printer count to consumables
+* Add chargeback feature
+* Add consumable type feature
+
 ### 1.3.0 - 22.08.2013
 * Add Purchase Cost and Purchase Date fields to printers.
 

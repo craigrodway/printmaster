@@ -3,6 +3,11 @@
 See the __General instructions__ section below, and then check the version-specific entries.
 
 
+### 1.4.0 - 01.2013
+* Copy `inc/config/config.default.php` to `inc/config/config.php`.
+* Edit `inc/config/config.php` and enter your current database information (copy from `inc/init.php`).
+* Delete `inc/config.php` and `inc/init.php`.
+
 ### 1.2.1 - 22.08.2013
 * Database patch only: Just visit __/printmaster/upgrade.php__ in your browser.
 
