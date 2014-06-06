@@ -20,30 +20,50 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 
 
 class Consumable extends fActiveRecord{
-	
-	
+
+
 	var $err;
-    
-	
+
+
 	protected function configure(){
     }
-	
-	
-	
-	
+
+
+
+
+    public static function findAll($sort = 'consumables.name', $dir = 'asc', $start = 0, $limit = 100) {
+
+    	if ( ! in_array($sort, array('consumables.name', 'consumables.qty', 'consumables.cost'))) {
+			$sort = 'consumables.name';
+		}
+
+		if ( ! in_array($dir, array('asc', 'desc'))) {
+			$dir = 'asc';
+		}
+
+		return fRecordSet::build(
+			__CLASS__,
+			array(),
+			array($sort => $dir)
+		);
+    }
+
+
+
+
 	/**
 	 * Get a single consumable
 	 */
 	static public function getOne($id){
-		
+
 		if($id == NULL){
 			return FALSE;
 		}
-		
+
 		global $db;
-		
-		$sql = "SELECT 
-				consumables.*, 
+
+		$sql = "SELECT
+				consumables.*,
 				( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
 				GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model
 				FROM consumables
@@ -53,29 +73,50 @@ class Consumable extends fActiveRecord{
 				WHERE consumables.id = %i
 				GROUP BY consumables.id
 				LIMIT 1";
-				
+
 		$query = $db->query($sql, $id)->asObjects();
 		$result = $query->fetchRow();
 		return $result;
-		
+
 	}
-	
-	
-	
-	
+
+
+
+
+	public function getQtyLevel() {
+		return round(($this->getQty() / 10) * 100);
+	}
+
+
+
+
+	public function getTags($type = null) {
+
+		$tags = $this->buildTags();
+
+		if ($type === null) {
+			return $tags;
+		} else {
+			return $tags->filter(array('getType=' => $type));
+		}
+	}
+
+
+
+
 	/**
 	 * Update quantity
 	 */
 	public function increaseStockBy($qty){
-		
+
 		global $db;
-		
+
 		// Test if quantity is OK (number above 0)
 		if(!is_numeric($qty) /* OR $qty < 1 */ ){
 			$this->err = 'Quantity is not a valid number';
 			return FALSE;
 		}
-		
+
 		// Increase stock
 		try {
 			$sql = 'UPDATE consumables SET qty = qty + %i WHERE id = %i LIMIT 1';
@@ -84,59 +125,59 @@ class Consumable extends fActiveRecord{
 			$this->err = $e->getMessage();
 			return FALSE;
 		}
-		
+
 		return TRUE;
-		
+
 	}
-	
-	
-	
-	
+
+
+
+
 	/**
 	 * Get colour status of a consumable based on supplied quantity
 	 *
 	 * @param	int		Quantity
 	 * @return	string	Hexadecimal representation of a colour (OK, Warning, None)
 	 */
-	static public function getQtyStatus($qty){
-		
+	public function getQtyStatus(){
+
 		global $status;
-		
+
 		// Loop through possible statuses until our quantity is found, then return colour value
 		foreach($status as $k => $v){
-			if($qty >= $k){ return $v[1]; }
+			if($this->getQty() >= $k){ return $v[1]; }
 		}
-		
+
 	}
-	
-	
-	
-	
+
+
+
+
 	/**
 	 * Get available consumables associated with models
 	 */
 	public static function getForModels(&$db){
-		
+
 		$sql = "SELECT
 				consumables.*, models.name AS model, models.id AS model_id
 				FROM consumables
 				LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
 				LEFT JOIN models ON consumables_models.model_id = models.id";
-				
+
 		$consumables = $db->query($sql)->asObjects();
-		
+
 		$models = array();
-		
+
 		foreach($consumables as $c){
-			
+
 			$thismodel = 'model_' . $c->model_id;
-			
+
 			$colours = array();
 			if($c->col_c){ $colours[] = 'c'; }
 			if($c->col_y){ $colours[] = 'y'; }
 			if($c->col_m){ $colours[] = 'm'; }
 			if($c->col_k){ $colours[] = 'k'; }
-			
+
 			$models[$thismodel][] = array(
 				'id' => $c->id,
 				'name' => $c->name,
@@ -144,24 +185,24 @@ class Consumable extends fActiveRecord{
 				'qty' => $c->qty,
 				'cost' => $c->cost,
 			);
-			
+
 			//{"id": 1, "name": "C9720A", "colour": "c", "qty": 5},
 		}
-		
+
 		return $models;
-		
+
 	}
-	
-	
-	
-	
+
+
+
+
 	/**
 	 * Get array of printer model IDs associated with 'this' consumable
 	 *
 	 * @return	array	1-dimensional array containing model IDs
 	 */
 	public function getModels(){
-		
+
 		// Initialise array
 		$ids = array();
 		// Get models for this consumable
@@ -172,53 +213,53 @@ class Consumable extends fActiveRecord{
 		}
 		// Return array of model IDs
 		return $ids;
-		
+
 	}
-	
-	
-	
-	
+
+
+
+
 	/**
 	 * Install a consumable to a printer
 	 */
 	public function installTo($printer){
-		
+
 		global $db;
-		
+
 		#printf('Installing consumable %s to printer %s.', $this->getName(), $printer->getName());
-		
+
 		#fCore::dump($printer);
-		
+
 		// Validation checks
-		
+
 		// 1. Check printer model is compatible
 		$models = $this->getModels();
 		if(!in_array($printer->getModelId(), $models)){
-			$this->err = sprintf('Consumable %s not compatible with printer %s.', 
+			$this->err = sprintf('Consumable %s not compatible with printer %s.',
 				$this->getName(), $printer->getName());
 			return FALSE;
 		}
-		
+
 		// 2. Check quantity
 		if($this->getQty() < 1){
 			$this->err = sprintf('No stock of the consumable %s.', $this->getName());
 			return FALSE;
 		}
-		
+
 		// Finished validation
-		
+
 		// Add 'event'
 		try {
-			
+
 			$e = new Event();
 			$e->setPrinterId($printer->getId());
 			$e->setConsumableId($this->getId());
 			$e->setDate(date('Y-m-d H:i:s'));
 			$e->setCost($this->getCost());
 			$e->store();
-			
+
 		} catch(fExpectedException $e){
-			#fMessaging::create('error', fURL::get(), $e->getMessage());	
+			#fMessaging::create('error', fURL::get(), $e->getMessage());
 			$this->err = $e->getMessage();
 			return FALSE;
 		} catch(fSQLException $e){
@@ -226,7 +267,7 @@ class Consumable extends fActiveRecord{
 			$this->err = $e->getMessage();
 			return FALSE;
 		}
-		
+
 		// Decrease stock
 		try {
 			$sql = 'UPDATE consumables SET qty = qty - 1 WHERE id = %i LIMIT 1';
@@ -235,14 +276,14 @@ class Consumable extends fActiveRecord{
 			$this->err = $e->getMessage();
 			return FALSE;
 		}
-		
-		
+
+
 		// Return true
 		#echo 'Done!';
 		return TRUE;
-		
-		
+
+
 	}
-	
-	
+
+
 }

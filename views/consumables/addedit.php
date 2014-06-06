@@ -74,16 +74,34 @@ $tpl->place('header');
 			<tr>
 				<td class="caption"><label>Types</label></td>
 				<td class="input">
-				<?php $c_types = $c->buildTags(); ?>
-				<?php foreach($types as $type): ?>
+				<?php $c_tags = $c->buildTags(); ?>
+				<?php foreach($consumable_types as $type): ?>
 					<label class="check">
 						<input type="checkbox"
 							id="<?php echo $type->getId() ?>"
-							name="tags::id[]"
+							name="consumable_types[]"
 							value="<?php echo $type->getId() ?>"
-							<?php echo ($c_types->contains($type) ? 'checked="checked"' : '') ?> />
+							<?php echo ($c_tags->contains($type) ? 'checked="checked"' : '') ?> />
 						<?php echo $type->getTitle() ?></label>
 				<?php endforeach; ?>
+				</td>
+			</tr>
+			<?php endif; ?>
+
+			<?php if (feature('supply_types')): ?>
+			<tr>
+				<td class="caption"><label>Supply type</label></td>
+				<td class="input">
+					<select name="supply_type" id="supply_type">
+					<option value=""></option>
+					<?php
+					$option = '<option value="%d">%s</option>';
+					foreach ($supply_types as $supply) {
+						$selected = ($action === 'add' ? fMessaging::retrieve('supply_type', 'consumables/add') : $c_tags->contains($supply));
+						fHTML::printOption($supply->getTitle(), $supply->getId(), $selected);
+					}
+					?>
+					</select>
 				</td>
 			</tr>
 			<?php endif; ?>
