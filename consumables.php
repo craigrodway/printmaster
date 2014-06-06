@@ -38,40 +38,8 @@ if ($action == 'list') {
 	$dir  = fCRUD::getSortDirection('asc');
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
-
-	// Get recordset object from tables
-	$sql = "SELECT
-				consumables.*,
-				( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
-				GROUP_CONCAT(DISTINCT CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
-				COUNT(printers.id) AS printer_count
-			FROM
-				consumables
-			LEFT JOIN
-				consumables_models
-				ON consumables.id = consumables_models.consumable_id
-			LEFT JOIN
-				models
-				ON consumables_models.model_id = models.id
-			LEFT JOIN
-				manufacturers
-				ON models.manufacturer_id = manufacturers.id
-			LEFT JOIN
-				printers
-				ON consumables_models.model_id = printers.model_id
-			GROUP BY
-				consumables.id
-			ORDER BY
-				$sort $dir";
-
-	$consumables = $db->query($sql)->asObjects();
-
-	#$consumables = fRecordSet::build('Consumable', NULL, array($sort => $dir));
-
-
-
-	#$models = fRecordSet::build('Model', NULL, array('name' => 'asc'));
-	#$models->precreateManufacturers();
+	// Get the consumables
+	$consumables = Consumable::findAll($sort, $dir);
 
 	// Include page to show table
 	include 'views/consumables/index.php';
@@ -92,22 +60,17 @@ if ($action == 'add') {
 	// Try to get form values and save object if requested via POST method
 	if (fRequest::isPost()) {
 
-		try{
+		try {
 
-			// Try to validate options
-			$validator = new fValidation();
-			$validator->addOneOrMoreRule('col_c', 'col_y', 'col_m', 'col_k');
-			$validator->overrideFieldName(array(
-				'col_c' => 'Colour (Cyan)',
-				'col_y' => 'Colour (Yellow)',
-				'col_m' => 'Colour (Magenta)',
-				'col_k' => 'Colour (Black)',
-			));
-			$validator->validate();
+			// Pick up all tags
+			$tags = fRequest::get('consumable_types[]', 'integer[]', array());
+			$tags[] = fRequest::get('supply_type', 'integer?');
+			$tags = array_filter($tags, 'strlen');
 
-			// Populat and save consumable object from form values
+			// Populate and save consumable object from form values
 			$c->populate();
 			$c->linkModels();
+			$c->associateTags($tags);
 			$c->store();
 
 			// Set status message
@@ -133,16 +96,19 @@ if ($action == 'add') {
 
 	}
 
-	// Get manufacturers also for drop-down box
-	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-
 	// Get list of models
 	$models = Model::getSimple($db);
 
-	// Get types
+	// Get consumable types
 	if (feature('consumable_types'))
 	{
-		$types = Tag::get_by_type('consumable_type');
+		$consumable_types = Tag::get_by_type('consumable_type');
+	}
+
+	// Get supply types
+	if (feature('supply_types'))
+	{
+		$supply_types = Tag::get_by_type('supply_type');
 	}
 
 	include 'views/consumables/addedit.php';
@@ -167,21 +133,15 @@ if ($action == 'edit') {
 
 		if (fRequest::isPost()) {
 
-			// Try to validate options
-			$validator = new fValidation();
-			$validator->addOneOrMoreRule('col_c', 'col_y', 'col_m', 'col_k');
-			$validator->overrideFieldName(array(
-				'col_c' => 'Colour (Cyan)',
-				'col_y' => 'Colour (Yellow)',
-				'col_m' => 'Colour (Magenta)',
-				'col_k' => 'Colour (Black)',
-			));
-			$validator->validate();
+			// Pick up all tags
+			$tags = fRequest::get('consumable_types[]', 'integer[]', array());
+			$tags[] = fRequest::get('supply_type', 'integer?');
+			$tags = array_filter($tags, 'strlen');
 
 			// Update consumable object from POST data and save
 			$c->populate();
 			$c->linkModels();
-			$c->linkTags();
+			$c->associateTags($tags);
 			$c->store();
 
 			// Messaging
@@ -202,16 +162,19 @@ if ($action == 'edit') {
 
 	}
 
-	// Get manufacturers also for drop-down box
-	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-
 	// Get list of models
 	$models = Model::getSimple($db);
 
-	// Get types
+	// Get consumable types
 	if (feature('consumable_types'))
 	{
-		$types = Tag::get_by_type('consumable_type');
+		$consumable_types = Tag::get_by_type('consumable_type');
+	}
+
+	// Get supply types
+	if (feature('supply_types'))
+	{
+		$supply_types = Tag::get_by_type('supply_type');
 	}
 
 	include 'views/consumables/addedit.php';

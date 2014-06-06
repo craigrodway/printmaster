@@ -17,6 +17,7 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 <table class="list" id="consumables">
 	<thead>
 		<tr class="heading">
+			<th>&nbsp;</th>
 			<th>Colour</th>
 			<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
 			<?php if (feature('costs') || feature('chargeback')): ?>
@@ -36,15 +37,27 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 		echo '<tr>';
 
+		echo '<td style="width:20px;text-align:center;" class="col">';
+
+		if (feature('supply_types')) {
+			$supply_tags = $c->getTags('supply_type');
+			if ($supply_tags->count() == 1) {
+				$supply_tag = $supply_tags->getRecord(0);
+				echo '<img style="vertical-align:middle" src="web/img/tags/' . $supply_tag->getId() . '.png" class="js-tooltip" title="' . $supply_tag->encodeTitle() . '">';
+			}
+		}
+
+		echo '</td>';
+
 		echo '<td style="width:100px;text-align:left;" class="col">';
-		if($c->col_c){ printf($colour, '0066B3'); }
-		if($c->col_y){ printf($colour, 'FFCC00'); }
-		if($c->col_m){ printf($colour, 'CC0099'); }
-		if($c->col_k){ printf($colour, '000'); }
+		if($c->getColC()){ printf($colour, '0066B3'); }
+		if($c->getColY()){ printf($colour, 'FFCC00'); }
+		if($c->getColM()){ printf($colour, 'CC0099'); }
+		if($c->getColK()){ printf($colour, '000'); }
 		echo '</td>';
 
 
-		echo '<td class="name">' . $c->name . '</td>';
+		echo '<td class="name">' . $c->prepareName() . '</td>';
 
 		if (feature('costs') || feature('chargeback'))
 		{
@@ -52,32 +65,40 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 
 			if (feature('chargeback'))
 			{
-				echo ($c->chargeback == 1 ? '<img src="web/img/money.png" width="16" height="16" alt="Chargeback" class="chargeback_img" />' : '&nbsp;');
+				echo ($c->getChargeback() == 1 ? '<img src="web/img/money.png" width="16" height="16" alt="Chargeback" class="chargeback_img" />' : '&nbsp;');
 			}
 
-			echo ($c->cost ? '<span class="consumable_cost_value">' . config_item('currency') . $c->cost . '</span>' : '');
+			echo ($c->getCost() ? '<span class="consumable_cost_value">' . config_item('currency') . $c->prepareCost() . '</span>' : '');
 			echo '</td>';
 		}
 
-		$qtycol = Consumable::getQtyStatus($c->qty);
+		$qtycol = $c->getQtyStatus();
 		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
-		//echo '<td>' . sprintf($qtyinfo, $qtycol, $c->qty) . '</td>';
 
-		echo '<td width="20"><span class="js-consumable-qty">' . $c->qty . '</span></td>';
+		echo '<td width="20"><span class="js-consumable-qty">' . (int) $c->prepareQty() . '</span></td>';
 
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
-		printf($bar, $c->qty_percent, $qtycol);
+		printf($bar, $c->getQtyLevel(), $qtycol);
 
-		echo '<td>' . $c->model . '</td>';
+		echo '<td>';
+		$models = $c->buildModels();
+		$model_list = array();
+		$c->printerCount = 0;
+		foreach ($models as $model) {
+			$model_list[] = $model->prepareName();
+			$c->printerCount = (int) $c->printerCount + $model->countPrinters();
+		}
+		echo implode(', ', $model_list);
+		echo '</td>';
 
-		echo '<td>' . $c->printer_count . '</td>';
+		echo '<td>' . $c->printerCount . '</td>';
 
 		echo '<td>';
 		unset($actions);
-		$actions[] = array('consumables.php?action=edit&id=' . $c->id, 'Edit', 'edit.png');
-		$actions[] = array('consumables.php?action=delete&id=' . $c->id, 'Delete', 'delete.png');
+		$actions[] = array('consumables.php?action=edit&id=' . $c->getId(), 'Edit', 'edit.png');
+		$actions[] = array('consumables.php?action=delete&id=' . $c->getId(), 'Delete', 'delete.png');
 		// Only allow installation if there is stock
-		if($c->qty > 0){
+		if($c->getQty() > 0){
 			#$actions[] = array('install.php?consumable_id=' . $c->id, 'Install to printer &rarr;', 'printer_add.png');
 		}
 		$tpl->set('menuitems', $actions);

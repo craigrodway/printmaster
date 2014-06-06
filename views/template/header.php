@@ -9,15 +9,17 @@
 <link rel="stylesheet" href="web/css/reset.css" />
 <link rel="stylesheet" href="web/css/text.css" />
 <link rel="stylesheet" href="web/css/960.css" />
-<link rel="stylesheet" href="web/css/printmaster.css" />
-<link rel="stylesheet" href="web/css/print.css" media="print" />
 <link rel="stylesheet" href="web/_boxy/stylesheets/boxy.css" />
 <link rel="stylesheet" href="web/_datepicker/public/css/printmaster.css" />
+<link rel="stylesheet" href="web/_powertip/css/jquery.powertip-dark.min.css" />
+<link rel="stylesheet" href="web/css/printmaster.css" />
+<link rel="stylesheet" href="web/css/print.css" media="print" />
 <script src="web/js/jquery-1.10.2.min.js"></script>
 <script src="web/js/jquery.fastLiveFilter.js"></script>
 <script src="web/js/jquery.table-filter.js"></script>
 <script src="web/js/jquery.magnific-popup.custom-0.9.9.min.js"></script>
 <script src="web/_datepicker/public/javascript/zebra_datepicker.js"></script>
+<script src="web/_powertip/jquery.powertip.min.js"></script>
 <!--[if lt IE 9]>
 <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 <style type="text/css">.clear{ zoom: 1; display: block; }</style>

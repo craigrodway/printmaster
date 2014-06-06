@@ -53,3 +53,6 @@ $config->debug = FALSE;
 $config->features->costs = TRUE;
 $config->features->chargeback = TRUE;
 $config->features->consumable_types = TRUE;
+$config->features->supply_types = TRUE;
+
+/* End of file: ./inc/config/config.default.php */

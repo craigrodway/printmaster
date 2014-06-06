@@ -260,6 +260,22 @@ ul.printerlist li a:hover, ul.printerlist li a.current{
 
 
 
+/*
+Tooltip customisation (overwrites the default style)
+*/
+
+	#powerTip {
+		font-size: 11px;
+		-webkit-box-shadow: none;
+		-moz-box-shadow: none;
+		box-shadow: none;
+		border-radius: 0;
+		border: 0;
+		padding: 5px;
+	}
+
+
+
 /* Magnific Popup CSS */
 .mfp-bg {
   top: 0;
