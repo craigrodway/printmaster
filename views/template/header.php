@@ -27,6 +27,18 @@
 <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 <style type="text/css">.clear{ zoom: 1; display: block; }</style>
 <![endif]-->
+<?php
+if (feature('tags'))
+{
+	$tags = Tag::get_by_type('custom');
+	echo '<style type="text/css">';
+	$str = ".tag.id-%d { background-color: #%s; color: #%s; } \n";
+	foreach ($tags as $tag) {
+		printf($str, $tag->getId(), $tag->getColour(), $tag->getAltColour());
+	}
+	echo '</style>';
+}
+?>
 </head>
 <body>
 
@@ -43,6 +55,9 @@
 				<li><a href="models.php">Models</a></li>
 				<li><a href="consumables.php">Consumables</a></li>
 				<li><a href="reports.php?reset">Reports</a></li>
+				<?php if (feature('tags')): ?>
+				<li><a href="tags.php">Tags</a></li>
+				<?php endif; ?>
 			</ul>
 		</div>
 

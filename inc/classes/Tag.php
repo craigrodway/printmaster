@@ -27,8 +27,6 @@ class Tag extends fActiveRecord {
 	}
 
 
-
-
 	/**
 	 * Get 'simple' list of models - ID + name of manufacturer and model
 	 *
@@ -42,8 +40,6 @@ class Tag extends fActiveRecord {
 			array('title' => 'asc')
 		);
 	}
-
-
 
 
 	public static function parse_from_post($post_tags = array())
@@ -69,6 +65,16 @@ class Tag extends fActiveRecord {
 		}
 
 		return $tags;
+	}
+
+
+	public function getAltColour() {
+		$hex = $this->getColour();
+		$r = hexdec(substr($hex,0,2));
+		$g = hexdec(substr($hex,2,2));
+		$b = hexdec(substr($hex,4,2));
+		$yiq = (($r*299)+($g*587)+($b*114))/1000;
+		return ($yiq >= 128) ? '000' : 'fff';
 	}
 
 

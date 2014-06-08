@@ -75,6 +75,15 @@ if ($action == 'add') {
 
 			// Populate and save printer object from form values
 			$p->populate();
+
+			// Tags
+			if (feature('tags'))
+			{
+				$post_tags = fRequest::get('tags[]', 'string[]', array());
+				$tags = Tag::parse_from_post($post_tags);
+				$p->associateTags($tags);
+			}
+
 			$p->store();
 
 			// Set status message
@@ -100,11 +109,13 @@ if ($action == 'add') {
 
 	}
 
-	// Get manufacturers also for drop-down box
-	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-
 	// Get list of models
 	$models = Model::getSimple($db);
+
+	if (feature('tags'))
+	{
+		$tags = Tag::get_by_type('custom');
+	}
 
 	include 'views/printers/addedit.php';
 

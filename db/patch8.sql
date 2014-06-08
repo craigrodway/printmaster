@@ -8,3 +8,5 @@ CREATE TABLE `printers_tags` (
   CONSTRAINT `printers_tags_ibfk_1` FOREIGN KEY (`printer_id`) REFERENCES `printers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `printers_tags_ibfk_2` FOREIGN KEY (`tag_id`) REFERENCES `tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+ALTER TABLE `tags` ADD `colour` char(6) COLLATE 'utf8_unicode_ci' NOT NULL DEFAULT 'C7D2E1', COMMENT='';

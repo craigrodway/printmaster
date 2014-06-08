@@ -38,7 +38,7 @@ $tpl->set('menuitems', $menuitems);
 			if ($tags->count() > 0) {
 				$tag_arr = '';
 				foreach ($tags as $tag) {
-					$tag_arr[] = '<li class="tag">' . $tag->prepareTitle() . '</li>';
+					$tag_arr[] = '<li class="tag id-' . $tag->getId() . '">' . $tag->prepareTitle() . '</li>';
 				}
 				$tag_str = '<ul class="tags-inline">';
 				$tag_str .= implode('', $tag_arr);
