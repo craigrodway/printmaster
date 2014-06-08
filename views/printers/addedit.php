@@ -90,6 +90,27 @@ $tpl->place('header');
 				</td>
 			</tr>
 
+			<?php if (feature('tags')): ?>
+			<tr>
+				<td class="caption"><label for="tags">Tags</label></td>
+				<td class="input">
+					<div class="clearfix">
+						<select class="tags" multiple="multiple" name="tags[]" id="tags">
+							<?php
+							$p_tags = $p->buildTags();
+							foreach ($tags as $tag)
+							{
+								$selected = ($p_tags->contains($tag) ? 'selected="selected"' : '');
+								echo "<option $selected value='" . $tag->getId() . "'>" . $tag->getTitle() . "</option>";
+							}
+							?>
+						</select>
+					</div>
+					<button type="button" class="js-new-tag">New</button>
+				</td>
+			</tr>
+			<?php endif; ?>
+
 			<tr>
 				<td class="caption"><label for="notes">Notes</label></td>
 				<td class="input">
@@ -124,6 +145,28 @@ $(document).ready(function(){
 	$("input[name='name']").focus();
 });
 </script>
+
+<?php if (feature('tags')): ?>
+<script type="text/javascript">
+$(document).ready(function() {
+	$("#tags").bsmSelect({
+		title: 'Select ...',
+		removeLabel: '<strong>X</strong>',
+		addItemTarget: 'original',
+		containerClass: 'bsmContainer',                // Class for container that wraps this widget
+		listClass: 'bsmList-tags',                   // Class for the list ($ol)
+		listItemClass: 'bsmListItem-tags',           // Class for the <li> list items
+		listItemLabelClass: 'bsmListItemLabel-tags', // Class for the label text that appears in list items
+		removeClass: 'bsmListItemRemove-tags'       // Class given to the "remove" link
+	});
+
+	$(".js-new-tag").on("click", function() {
+		var tag = prompt("Name of new tag");
+		$("#tags").append($("<option>", { text: tag, selected: "selected"})).change();
+	});
+})
+</script>
+<?php endif; ?>
 
 <?php
 $tpl->place('footer');

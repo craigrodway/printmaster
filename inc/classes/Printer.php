@@ -20,14 +20,40 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 
 
 class Printer extends fActiveRecord{
-    
-	
+
+
 	protected function configure(){
     }
-	
-	
-	
-	
+
+
+    public static $sort = array(
+    	'printers.name',
+    	'models.colour',
+    	'models.name',
+    	'printers.ipaddress',
+    	'printers.server',
+    	'printers.location',
+    );
+
+
+    public static function findAll($where = array(), $sort = 'printers.name', $dir = 'asc', $start = 0, $limit = 100) {
+
+    	if ( ! in_array($sort, self::$sort)) {
+			$sort = 'printers.name';
+		}
+
+		if ( ! in_array($dir, array('asc', 'desc'))) {
+			$dir = 'asc';
+		}
+
+		return fRecordSet::build(
+			__CLASS__,
+			$where,
+			array($sort => $dir)
+		);
+    }
+
+
 	/**
 	 * Get 'simple' list of printers for ID and name
 	 *
@@ -35,9 +61,9 @@ class Printer extends fActiveRecord{
 	 * @return	object	List of printers
 	 */
 	public static function getSimple(&$db){
-		
+
 		// Get simple list of printers
-		$sql = "SELECT 
+		$sql = "SELECT
 					printers.*,
 					CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) AS model,
 					models.colour
@@ -48,8 +74,21 @@ class Printer extends fActiveRecord{
 				ORDER BY printers.name ASC";
 		$printers = $db->query($sql)->asObjects();
 		return $printers;
-		
+
 	}
-	
-	
+
+
+	public function getTags() {
+		$tags = $this->buildTags();
+		return $tags->filter(array('getType=' => 'custom'));
+	}
+
+
+	public function getStock() {
+		$model = $this->createModel();
+		$consumables = $model->buildConsumables();
+		return $consumables->reduce('Consumable::total_qty');
+	}
+
+
 }

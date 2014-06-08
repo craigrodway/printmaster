@@ -26,14 +26,14 @@ class Consumable extends fActiveRecord{
 
 
 	protected function configure(){
-    }
+	}
 
 
 
 
-    public static function findAll($sort = 'consumables.name', $dir = 'asc', $start = 0, $limit = 100) {
+	public static function findAll($sort = 'consumables.name', $dir = 'asc', $start = 0, $limit = 100) {
 
-    	if ( ! in_array($sort, array('consumables.name', 'consumables.qty', 'consumables.cost'))) {
+		if ( ! in_array($sort, array('consumables.name', 'consumables.qty', 'consumables.cost'))) {
 			$sort = 'consumables.name';
 		}
 
@@ -46,7 +46,7 @@ class Consumable extends fActiveRecord{
 			array(),
 			array($sort => $dir)
 		);
-    }
+	}
 
 
 
@@ -283,6 +283,12 @@ class Consumable extends fActiveRecord{
 		return TRUE;
 
 
+	}
+
+
+
+	public static function total_qty($qty, $item) {
+		return $qty + $item->getQty();
 	}
 
 

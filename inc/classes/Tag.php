@@ -44,4 +44,32 @@ class Tag extends fActiveRecord {
 	}
 
 
+
+
+	public static function parse_from_post($post_tags = array())
+	{
+		$tags = array();
+
+		if (empty($post_tags)) return $tags;
+
+		foreach ($post_tags as $key => $value)
+		{
+			if ( (int) $value !== 0)
+			{
+				$tags[] = $value;
+			}
+			else
+			{
+				$tag = new Tag();
+				$tag->setTitle(trim($value));
+				$tag->setType('custom');
+				$tag->store();
+				$tags[] = $tag->getId();
+			}
+		}
+
+		return $tags;
+	}
+
+
 }

@@ -25,45 +25,65 @@ $tpl->set('menuitems', $menuitems);
 		<th filter="false">Operations</th>
 	</tr>
 	</thead>
-	
+
 	<tbody>
 	<?php
-	foreach($printers as $p){
-		
+	foreach ($printers as $p) {
+
+		$model = $p->createModel();
+
+		$tag_str = '';
+		if (feature('tags')) {
+			$tags = $p->getTags();
+			if ($tags->count() > 0) {
+				$tag_arr = '';
+				foreach ($tags as $tag) {
+					$tag_arr[] = '<li class="tag">' . $tag->prepareTitle() . '</li>';
+				}
+				$tag_str = '<ul class="tags-inline">';
+				$tag_str .= implode('', $tag_arr);
+				$tag_str .= '</ul>';
+			}
+		}
+
 		echo '<tr>';
-		
-		$img = ($p->colour == 1) ? 'colour.png' : 'mono.png';
-		$txt = ($p->colour == 1) ? 'C' : 'M';
+
+		$img = ($model->getColour() == 1) ? 'colour.png' : 'mono.png';
+		$txt = ($model->getColour() == 1) ? 'C' : 'M';
 		echo '<td style="width:48px;text-align:center;">';
 		echo '<span style="display:none;">' . $txt . '</span>';
 		echo '<img src="web/img/' . $img . '" width="16" height="16" />';
 		echo '</td>';
-		
-		printf('<td><strong><a href="%s">%s</a></strong></td>',
-			'printers.php?action=edit&id=' . $p->id,
-			$p->name
-		);
-		
-		echo '<td>' . $p->model . '</td>';
-		
+
+		// Name
+		$url = 'printers.php?action=edit&id=' . $p->getId();
+		echo '<td>';
+		echo '<strong><a href="' . $url . '">' . $p->getName() . '</a></strong>';
+		echo $tag_str;
+		echo '</td>';
+
+		echo '<td>' . $model->getName() . '</td>';
+
 		#echo '<td><strong>' . $p->name . '</strong><br /><span>' . $p->model . '</span></td>';
-		
-		if(!empty($p->ipaddress)){
-			printf('<td><a href="http://%1$s/" class="ext" target="_blank">%1$s</a></td>', $p->ipaddress);
+
+		if ($p->getIpaddress()) {
+			printf('<td><a href="http://%1$s/" class="ext" target="_blank">%1$s</a></td>', $p->getIpaddress());
 		} else {
 			echo '<td>&nbsp;</td>';
 		}
-		
-		echo '<td>' . $p->server . '</td>';
-		
-		echo '<td>' . $p->location . '</td>';
-		
+
+		echo '<td>' . $p->getServer() . '</td>';
+
+		echo '<td>' . $p->getLocation() . '</td>';
+
 		echo '<td class="operations">';
 		unset($actions);
-		$actions[] = array('reports.php?printer_id=' . $p->id, 'Report', 'report_magnify.png');
+		$actions[] = array('reports.php?printer_id=' . $p->getId(), 'Report', 'report_magnify.png');
+
 		// Only allow consumable installation if there is stock
-		if($p->stock > 0){
-			$text = sprintf('Install consumable (%d) &rarr;', $p->stock);
+		$stock = $p->getStock();
+		if ($stock > 0) {
+			$text = sprintf('Install consumable (%d) &rarr;', $stock);
 			#$actions[] = array('install.php?printer_id=' . $p->id, $text, 'printer_add.png');
 		} else {
 			$actions[] = array(NULL, '<strong style="color:#c00">No consumables!</strong>', 'error.png');
@@ -72,12 +92,12 @@ $tpl->set('menuitems', $menuitems);
 		$tpl->place('menu');
 		#echo $nostock;
 		echo '</td>';
-		
+
 		echo '</tr>';
 	}
 	?>
 	</tbody>
-	
+
 </table>
 
 </div>
