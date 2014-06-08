@@ -30,26 +30,12 @@ $tpl->set('menuitems', $menuitems);
 	<?php
 	foreach ($printers as $p) {
 
-		$model = $p->createModel();
-
-		$tag_str = '';
-		if (feature('tags')) {
-			$tags = $p->getTags();
-			if ($tags->count() > 0) {
-				$tag_arr = '';
-				foreach ($tags as $tag) {
-					$tag_arr[] = '<li class="tag id-' . $tag->getId() . '">' . $tag->prepareTitle() . '</li>';
-				}
-				$tag_str = '<ul class="tags-inline">';
-				$tag_str .= implode('', $tag_arr);
-				$tag_str .= '</ul>';
-			}
-		}
+		$p->model = $p->createModel();
 
 		echo '<tr>';
 
-		$img = ($model->getColour() == 1) ? 'colour.png' : 'mono.png';
-		$txt = ($model->getColour() == 1) ? 'C' : 'M';
+		$img = ($p->model->getColour() == 1) ? 'colour.png' : 'mono.png';
+		$txt = ($p->model->getColour() == 1) ? 'C' : 'M';
 		echo '<td style="width:48px;text-align:center;">';
 		echo '<span style="display:none;">' . $txt . '</span>';
 		echo '<img src="web/img/' . $img . '" width="16" height="16" />';
@@ -59,12 +45,10 @@ $tpl->set('menuitems', $menuitems);
 		$url = 'printers.php?action=edit&id=' . $p->getId();
 		echo '<td>';
 		echo '<strong><a href="' . $url . '">' . $p->getName() . '</a></strong>';
-		echo $tag_str;
+		echo $p->renderTagList();
 		echo '</td>';
 
-		echo '<td>' . $model->getName() . '</td>';
-
-		#echo '<td><strong>' . $p->name . '</strong><br /><span>' . $p->model . '</span></td>';
+		echo '<td>' . $p->model->getName() . '</td>';
 
 		if ($p->getIpaddress()) {
 			printf('<td><a href="http://%1$s/" class="ext" target="_blank">%1$s</a></td>', $p->getIpaddress());

@@ -91,4 +91,32 @@ class Printer extends fActiveRecord{
 	}
 
 
+	public function renderTagList() {
+
+		if ( ! $this->model) {
+			$this->model = $this->createModel();
+		}
+
+		$out = '';
+
+		if (feature('tags')) {
+
+			$tags = $this->getTags();
+
+			if ($tags->count() > 0) {
+
+				$out = '<ul class="tags-inline">';
+
+				foreach ($tags as $tag) {
+					$out .= '<li class="tag id-' . $tag->getId() . '">' . $tag->prepareTitle() . '</li>';
+				}
+
+				$out .= '</ul>';
+			}
+		}
+
+		return $out;
+	}
+
+
 }
