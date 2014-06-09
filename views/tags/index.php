@@ -10,28 +10,47 @@ $tpl->place('header');
 		<table class="list" id="tags">
 			<thead>
 			<tr class="heading">
+				<th style="width: 64px">Colour</th>
 				<th>Name</th>
-				<th>Colour</th>
+				<th></th>
 			</tr>
 			</thead>
 
 			<tbody>
-			<?php
-			foreach ($tags as $t) {
+				<?php
+				foreach ($tags as $t) {
 
-				echo '<tr>';
+					echo '<tr>';
 
-				echo '<td>';
-				echo '<strong>' . $t->prepareTitle() . '</strong>';
-				echo '</td>';
+					echo '<td>';
+					echo '<input type="text" name="tags[' . $t->getId() . '][colour]" value="#' . $t->prepareColour() . '" id="colour_' . $t->getId() . '" class="text-input js-colourpicker" size="10" max_length="6" autocomplete="off"  />';
+					echo '</td>';
 
-				echo '<td>';
-				echo '<input type="text" name="colour[' . $t->getId() . ']" value="#' . $t->prepareColour() . '" id="colour" class="text-input js-colourpicker" size="10" max_length="6" tabindex="3" autocomplete="off"  />';
-				echo '</td>';
+					echo '<td>';
+					echo '<input type="text" name="tags[' . $t->getId() . '][title]" value="' . $t->encodeTitle() . '" id="title_' . $t->getId() . '" class="text-input js-title" size="20" max_length="128"  />';
+					echo '</td>';
 
-				echo '</tr>';
-			}
-			?>
+					echo '<td class="delete">';
+					unset($actions);
+					$actions[] = array(fURL::get() . '#' . $t->getId(), 'Delete', 'delete.png');
+					$tpl->set('menuitems', $actions);
+					$tpl->place('menu');
+					echo '</td>';
+
+					echo '</tr>';
+				}
+				?>
+
+				<tr>
+					<td>
+						<input type="text" name="tags[-1][colour]" value="" id="colour_-1" class="text-input js-colourpicker" size="10" max_length="6" autocomplete="off"  />
+					</td>
+					<td>
+						<input type="text" name="tags[-1][title]" value="" id="title_-1" class="text-input" size="20" max_length="128"  />
+					</td>
+					<td></td>
+				</tr>
+
 			</tbody>
 
 		</table>
@@ -53,6 +72,16 @@ $(document).ready(function(){
 	];
 
 	$('.js-colourpicker').colorPicker();
+
+	$("table#tags").on("click", ".delete a", function(e) {
+		e.preventDefault();
+		//alert("delete");
+		var $tr = $(this).parents("tr"),
+			$input = $tr.find("input.js-title");
+
+		$input.val("");
+		$tr.remove();
+	});
 
 });
 </script>

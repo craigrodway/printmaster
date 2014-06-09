@@ -23,21 +23,46 @@ along with Print Master.  If not, see <http://www.gnu.org/licenses/>.
 include_once('inc/core.php');
 
 if (fRequest::isPost()) {
+
 	// Update ALL the tags.
 
-	$colours = fRequest::get('colour', 'string[]', array());
+	$data = fRequest::get('tags[]', 'array', array());
 
-	if (count($colours) > 0) {
+	if (count($data) > 0) {
 
 		$success = 0;
 
-		foreach ($colours as $id => $value) {
+		foreach ($data as $id => $values) {
 
 			try {
 
-				$tag = new Tag($id);
-				$tag->setColour(str_replace('#', '', $value));
-				$tag->store();
+				$colour = str_replace('#', '', $values['colour']);
+				$title = trim($values['title']);
+				$id = (int) $id;
+
+				// Empty new tag entry? Do nothing.
+				if ($id === -1 && empty($title)) {
+					continue;
+				}
+
+				if ($id > 0) {
+					// Load tag with ID
+					$tag = new Tag($id);
+				} else {
+					// Create new tag
+					$tag = new Tag();
+					$tag->setType('custom');
+				}
+
+				if (empty($title)) {
+					// Title is empty. Remove this tag.
+					$tag->delete();
+				} else {
+					// Update it.
+					$tag->setColour($colour);
+					$tag->setTitle($title);
+					$tag->store();
+				}
 
 				$success++;
 
@@ -50,7 +75,7 @@ if (fRequest::isPost()) {
 		}
 
 		if ($success > 0) {
-			fMessaging::create('success', fURL::get(), 'The tag colours have been updated successfully.');
+			fMessaging::create('success', fURL::get(), 'The tags have been updated successfully.');
 			fURL::redirect(fURL::get());
 		}
 
