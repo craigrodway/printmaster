@@ -27,8 +27,6 @@ class Tag extends fActiveRecord {
 	}
 
 
-
-
 	/**
 	 * Get 'simple' list of models - ID + name of manufacturer and model
 	 *
@@ -41,6 +39,42 @@ class Tag extends fActiveRecord {
 			array('type=' => $type),
 			array('title' => 'asc')
 		);
+	}
+
+
+	public static function parse_from_post($post_tags = array())
+	{
+		$tags = array();
+
+		if (empty($post_tags)) return $tags;
+
+		foreach ($post_tags as $key => $value)
+		{
+			if ( (int) $value !== 0)
+			{
+				$tags[] = $value;
+			}
+			else
+			{
+				$tag = new Tag();
+				$tag->setTitle(trim($value));
+				$tag->setType('custom');
+				$tag->store();
+				$tags[] = $tag->getId();
+			}
+		}
+
+		return $tags;
+	}
+
+
+	public function getAltColour() {
+		$hex = $this->getColour();
+		$r = hexdec(substr($hex,0,2));
+		$g = hexdec(substr($hex,2,2));
+		$b = hexdec(substr($hex,4,2));
+		$yiq = (($r*299)+($g*587)+($b*114))/1000;
+		return ($yiq >= 128) ? '000' : 'fff';
 	}
 
 

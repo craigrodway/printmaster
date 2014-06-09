@@ -35,51 +35,22 @@ $model_id = fRequest::get('model_id', 'integer');
 if ($action == 'list') {
 
 	// Set the users to be sortable by name or email, defaulting to name
-	$sort = fCRUD::getSortColumn(array(
-		'printers.name', 'models.name', 'printers.ipaddress',
-		'printers.server', 'printers.location', 'models.colour'
-	));
+	$sort = fCRUD::getSortColumn(Printer::$sort);
 	// Set the sorting to default to ascending
 	$dir  = fCRUD::getSortDirection('asc');
 	// Redirect the user if one of the values was loaded from the session
 	fCRUD::redirectWithLoadedValues();
 
 	// Filter
-	$where = NULL;
+	$where = array();
+
 	if ($model_id)
 	{
 		// Filter by model ID
-		$where = ' AND printers.model_id = %i ';
+		$where['printers.model_id='] = $model_id;
 	}
 
-	// Get recordset object from tables
-	$sql = "SELECT
-				printers.*,
-				manufacturers.name AS mfr_name,
-				models.name AS model_name,
-				models.colour,
-				GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
-				(
-					SELECT SUM(qty) FROM consumables
-					LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
-					WHERE consumables_models.model_id = printers.model_id
-				) AS stock
-			FROM printers
-			LEFT JOIN models ON printers.model_id = models.id
-			LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
-			WHERE 1 = 1
-			$where
-			GROUP BY printers.id
-			ORDER BY $sort $dir";
-
-	$printers = $db->query($sql, $model_id)->asObjects();
-
-	#$consumables = fRecordSet::build('Consumable', NULL, array($sort => $dir));
-
-
-
-	#$models = fRecordSet::build('Model', NULL, array('name' => 'asc'));
-	#$models->precreateManufacturers();
+	$printers = Printer::findAll($where, $sort, $dir);
 
 	// Include page to show table
 	include 'views/printers/index.php';
@@ -104,6 +75,15 @@ if ($action == 'add') {
 
 			// Populate and save printer object from form values
 			$p->populate();
+
+			// Tags
+			if (feature('tags'))
+			{
+				$post_tags = fRequest::get('tags[]', 'string[]', array());
+				$tags = Tag::parse_from_post($post_tags);
+				$p->associateTags($tags);
+			}
+
 			$p->store();
 
 			// Set status message
@@ -129,11 +109,13 @@ if ($action == 'add') {
 
 	}
 
-	// Get manufacturers also for drop-down box
-	#$manufacturers = fRecordSet::build('Manufacturer', NULL, array('name' => 'asc'));
-
 	// Get list of models
 	$models = Model::getSimple($db);
+
+	if (feature('tags'))
+	{
+		$tags = Tag::get_by_type('custom');
+	}
 
 	include 'views/printers/addedit.php';
 
@@ -159,6 +141,15 @@ if ($action == 'edit') {
 
 			// Update printer object from POST data and save
 			$p->populate();
+
+			// Tags
+			if (feature('tags'))
+			{
+				$post_tags = fRequest::get('tags[]', 'string[]', array());
+				$tags = Tag::parse_from_post($post_tags);
+				$p->associateTags($tags);
+			}
+
 			$p->store();
 
 			// Messaging
@@ -184,6 +175,11 @@ if ($action == 'edit') {
 
 	// Get list of models
 	$models = Model::getSimple($db);
+
+	if (feature('tags'))
+	{
+		$tags = Tag::get_by_type('custom');
+	}
 
 	include 'views/printers/addedit.php';
 
