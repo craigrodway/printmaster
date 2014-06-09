@@ -17,7 +17,9 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 <table class="list" id="consumables">
 	<thead>
 		<tr class="heading">
+			<?php if (feature('supply_types')): ?>
 			<th>&nbsp;</th>
+			<?php endif; ?>
 			<th>Colour</th>
 			<th><?php echo fCRUD::printSortableColumn('consumables.name', 'Name') ?></th>
 			<?php if (feature('costs') || feature('chargeback')): ?>
@@ -33,21 +35,19 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 	<tbody>
 
 	<?php
-	foreach($consumables as $c){
+	foreach ($consumables as $c) {
 
 		echo '<tr>';
 
-		echo '<td style="width:20px;text-align:center;" class="col">';
-
 		if (feature('supply_types')) {
+			echo '<td style="width:20px;text-align:center;" class="col">';
 			$supply_tags = $c->getTags('supply_type');
 			if ($supply_tags->count() == 1) {
 				$supply_tag = $supply_tags->getRecord(0);
 				echo '<img style="vertical-align:middle" src="web/img/tags/' . $supply_tag->getId() . '.png" class="js-tooltip" title="' . $supply_tag->encodeTitle() . '">';
 			}
+			echo '</td>';
 		}
-
-		echo '</td>';
 
 		echo '<td style="width:100px;text-align:left;" class="col">';
 		if($c->getColC()){ printf($colour, '0066B3'); }
@@ -55,7 +55,6 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 		if($c->getColM()){ printf($colour, 'CC0099'); }
 		if($c->getColK()){ printf($colour, '000'); }
 		echo '</td>';
-
 
 		echo '<td class="name">' . $c->prepareName() . '</td>';
 
