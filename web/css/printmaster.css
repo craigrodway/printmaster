@@ -46,6 +46,18 @@ div#title{ border-bottom:1px solid #ccc; margin-bottom:10px; }
 div#title h1{ margin:5px 0; }
 
 
+/* Footer */
+.footer {
+	margin-top: 40px;
+	margin-bottom: 10px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	border-top: 1px solid #ccc;
+	font-size: 11px;
+	color: #666;
+}
+
+
 /* Link bar beneath title */
 ul.linkbar, ul.linkbar{ list-style:none; margin:5px 0 15px 0; }
 ul.linkbar li{ margin:0 20px 0 0; float:left; }
