@@ -71,11 +71,11 @@ $colour = '<span style="color:#%s;">&bull;</span>';
 			echo '</td>';
 		}
 
-		$qtycol = $c->getQtyStatus();
-		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
 
 		echo '<td width="20"><span class="js-consumable-qty">' . (int) $c->prepareQty() . '</span></td>';
 
+		$qtycol = $c->getQtyStatus();
+		$qtyinfo = '<span style="background:#%s;padding:3px 6px;-webkit-border-radius:4px;font-weight:bold;color:#000;">%d</span>';
 		$bar = '<td width="120"><div class="progress-container"><div style="width: %d%%; background: #%s;"></div></div></td>';
 		printf($bar, $c->getQtyLevel(), $qtycol);
 
