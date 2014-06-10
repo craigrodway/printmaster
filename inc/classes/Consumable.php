@@ -24,8 +24,25 @@ class Consumable extends fActiveRecord{
 
 	var $err;
 
+	private static $maxQty = NULL;
+
 
 	protected function configure(){
+	}
+
+
+
+	public static function getMaxQty() {
+
+		global $db;
+
+		if (self::$maxQty === NULL) {
+			$sql = 'SELECT MAX(qty) AS max FROM consumables';
+			$row = $db->query($sql)->fetchRow();
+			self::$maxQty = $row['max'];
+		}
+
+		return self::$maxQty;
 	}
 
 
@@ -84,7 +101,8 @@ class Consumable extends fActiveRecord{
 
 
 	public function getQtyLevel() {
-		return round(($this->getQty() / 10) * 100);
+		$max = self::getMaxQty();
+		return round(($this->getQty() / $max) * 100);
 	}
 
 
