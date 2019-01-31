@@ -15,6 +15,7 @@ Features
 * List all printers (linkable to web IP interface)
 * Manage consumable stock levels
 * Log consumable installations
+* Log consumable orders
 
 
 Screenshot

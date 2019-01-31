@@ -39,8 +39,12 @@ $tpl->place('header');
 $sql = "SELECT
 		consumables.*,
 		( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
-		GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model
+		GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
+		orders.status AS order_status,
+		orders.id AS order_id,
+		orders.item_qty AS order_qty
 		FROM consumables
+		LEFT JOIN orders ON orders.item_id = consumables.id
 		LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
 		LEFT JOIN models ON consumables_models.model_id = models.id
 		LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id

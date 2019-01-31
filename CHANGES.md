@@ -1,5 +1,9 @@
 # Changelog
 
+### 1.5.0 - 31.01.2019 (Mike Glover)
+* Added Order feature. Track what consumable are on order. When delivered you click Complete and added to stock levels.
+* When choosing a printer on the home page it displays if that consumable is on order
+
 ### 1.4.0 - 19.02.2013
 * Fix model name character length
 * Update to config methods (please see UPGRADE for instructions)

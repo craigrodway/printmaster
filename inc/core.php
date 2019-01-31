@@ -79,8 +79,8 @@ else
 
 	// @TODO remove these when the thresholds become configurable.
 	global $status;
-	$status[3] = array('OK', '73D216');			// 3+ OK
-	$status[2] = array('Low', 'EDD400');		// 2+ Warning
+	$status[2] = array('OK', '73D216');			// 2+ OK
+	$status[1] = array('Low', 'EDD400');		// 1+ Warning
 	$status[0] = array('Critical', 'CC0000');	// 0: Empty - bad.
 
 	// Set up database connection

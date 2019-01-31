@@ -118,8 +118,9 @@ class Consumable extends fActiveRecord{
 	public static function getForModels(&$db){
 		
 		$sql = "SELECT
-				consumables.*, models.name AS model, models.id AS model_id
+				consumables.*, models.name AS model, models.id AS model_id, orders.status AS order_status
 				FROM consumables
+				LEFT JOIN orders ON consumables.id = orders.item_id
 				LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
 				LEFT JOIN models ON consumables_models.model_id = models.id";
 				
@@ -143,6 +144,7 @@ class Consumable extends fActiveRecord{
 				'colours' => $colours,
 				'qty' => $c->qty,
 				'cost' => $c->cost,
+				'status' => $c->order_status
 			);
 			
 			//{"id": 1, "name": "C9720A", "colour": "c", "qty": 5},
