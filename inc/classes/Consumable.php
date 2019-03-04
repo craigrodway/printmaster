@@ -120,7 +120,7 @@ class Consumable extends fActiveRecord{
 		$sql = "SELECT
 				consumables.*, models.name AS model, models.id AS model_id, orders.status AS order_status
 				FROM consumables
-				LEFT JOIN orders ON consumables.id = orders.item_id
+				LEFT JOIN orders ON consumables.id = (SELECT orders.item_id WHERE orders.status = 0 LIMIT 1)
 				LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
 				LEFT JOIN models ON consumables_models.model_id = models.id";
 				

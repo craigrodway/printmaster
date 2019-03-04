@@ -54,21 +54,12 @@ class Order extends fActiveRecord{
 	public static function getConsumables(&$db){
 		
 		// Get simple list of models
-		/*$sql = 'SELECT consumables.*
-				FROM consumables
-				ORDER BY consumables.qty ASC, consumables.name ASC';
-		$consumables = $db->query($sql)->asObjects();
-		return $consumables; */
-		$sql = 'SELECT orders.*,
+		$sql = 'SELECT consumables.*,
 				consumables.id AS consumable_id,
 				consumables.name AS consumable_name,
-				consumables.qty AS current_qty,
-				orders.status AS order_status
-				FROM orders
-				RIGHT JOIN
-				consumables
-				ON consumables.id = orders.item_id
-				ORDER BY current_qty ASC, consumable_name ASC';
+				consumables.qty AS current_qty
+				FROM consumables
+				ORDER BY consumables.qty ASC, consumables.name ASC'; 
 		$consumables = $db->query($sql)->asObjects();
 		return $consumables;
 		
