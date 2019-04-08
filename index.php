@@ -39,13 +39,17 @@ $tpl->place('header');
 $sql = "SELECT
 		consumables.*,
 		( round( ( (consumables.qty) / (SELECT MAX(qty) FROM consumables) ) * 100 ) ) AS qty_percent,
-		GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model
+		GROUP_CONCAT(CAST(CONCAT(manufacturers.name, ' ', models.name) AS CHAR) SEPARATOR ', ') AS model,
+		orders.status AS order_status,
+		orders.id AS order_id,
+		orders.item_qty AS order_qty
 		FROM consumables
+		LEFT JOIN orders ON orders.item_id = (SELECT consumables.id WHERE orders.status = 0 LIMIT 1)
 		LEFT JOIN consumables_models ON consumables.id = consumables_models.consumable_id
 		LEFT JOIN models ON consumables_models.model_id = models.id
 		LEFT JOIN manufacturers ON models.manufacturer_id = manufacturers.id
 		GROUP BY consumables.id
-		ORDER BY models.name ASC, consumables.name ASC";
+		ORDER BY models.name ASC, consumables.name ASC, orders.id ASC";
 $consumables = $db->query($sql)->asObjects();
 
 // Get the most consumables in stock

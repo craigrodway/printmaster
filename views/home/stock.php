@@ -50,6 +50,13 @@ foreach($consumables as $c){
 	echo '<td align="center" width="20" valign="middle"><a href="' . $url . '" rel="stock">';
 	echo '<img src="web/img/package_green.png" width="16" height="16" alt="Enter new stock" />';
 	echo '</a></td>';
+	// Extra order stuff
+
+	$ordered = "";
+	if($c->order_status == '0'){
+		$ordered = "<span>". $c->order_qty . " </span><a href='orders.php?action=update&id=" . $c->order_id . "'>" ."<img src='web/img/delivery.png'></a>";
+	}
+	echo '<td width="30">' . $ordered . '</td>';
 
 	echo '</tr>';
 

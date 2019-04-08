@@ -37,6 +37,7 @@
 				<li><a href="manufacturers.php">Manufacturers</a></li>
 				<li><a href="models.php">Models</a></li>
 				<li><a href="consumables.php">Consumables</a></li>
+				<li><a href="orders.php">Orders</a></li>
 				<li><a href="reports.php?reset">Reports</a></li>
 			</ul>
 		</div>

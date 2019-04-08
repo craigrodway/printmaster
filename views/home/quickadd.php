@@ -86,7 +86,7 @@ $('ul.printerlist li a').click(function(){
 		
 		// Yes - loop through consumables and create buttons
 		for(var i = 0; i < cnode.length; i++){
-			createButton(cnode[i].id, cnode[i].name, cnode[i].colours, cnode[i].qty);
+			createButton(cnode[i].id, cnode[i].name, cnode[i].colours, cnode[i].qty, cnode[i].status);
 		}
 		
 		if (i > 1) {
@@ -119,10 +119,14 @@ $('ul.printerlist li a').click(function(){
 
 
 // Create a consumable button
-createButton = function(id, name, colours, qty){
+createButton = function(id, name, colours, qty, status){
 	
 	// Text is based on name and quantity
-	var text = name + " (" + qty + ")";
+	var text = name + " (" + qty + ") ";
+	var ordered = "";
+	if(status == '0'){
+		ordered = "On Order";
+	}
 	
 	if(colours.length == 1){
 		var colour = colours[0];
@@ -130,7 +134,7 @@ createButton = function(id, name, colours, qty){
 	
 	// Create button element
 	var check = $('<input type="checkbox" class="con-check" value="' + id + '">');
-	var btn = $('<input type="button" class="btn btn_colour_' + colour + '" value="' + text + '" consumable="' + id + '">');
+	var btn = $('<input type="button" class="btn btn_colour_' + colour + '" value="' + text + ordered + '" consumable="' + id + '">');
 	
 	// Attach event to button click
 	if(qty > 0){
